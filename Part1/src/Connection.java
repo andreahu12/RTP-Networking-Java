@@ -70,7 +70,7 @@ public class Connection {
 	}
 
 	public void setWINDOW_SIZE(int size) {
-		MAX_WINDOW_SIZE = size;
+		MAX_WINDOW_SIZE = size * MAX_RTP_PACKET_SIZE;
 	}
 	
 	public Queue<Byte> getReceiveBuffer() {

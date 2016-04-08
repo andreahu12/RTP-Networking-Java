@@ -60,7 +60,6 @@ public class Packet {
 		// calculated header fields
 		this.payloadSize = getPayloadSize();
 		// remainingBufferSize should be window_size - buffer.size() calculated via connection
-//		this.remainingBufferSize = MAX_SEGMENT_SIZE - this.payloadSize; // this is incorrect
 	}
 	
 	/**
@@ -147,8 +146,6 @@ public class Packet {
 	 * @return remaining bytes in buffer
 	 */
 	public int getRemainingBufferSize() {
-//		this.payloadSize = getPayloadSize();
-//		this.remainingBufferSize = MAX_SEGMENT_SIZE - this.payloadSize;
 		return this.remainingBufferSize;
 	}
 	
