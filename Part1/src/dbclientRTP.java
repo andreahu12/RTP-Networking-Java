@@ -2,18 +2,19 @@ import java.net.*;
 import java.nio.ByteBuffer;
 import java.io.*;
 import java.lang.StringBuilder;
+import java.nio.charset.Charset;
 
 public class dbclientRTP {
 	public static void main(String[] args) throws IOException {
 		if ((args.length < 3)) {
 			throw new IllegalArgumentException("Parameters: <Server>:<Port> <Query Key> <Query Attribute> ... <Query Attribute>");
 		}
-		
+		// get args from command line
 		String[] serverAndPort = separate(args[0]);
 		String server = serverAndPort[0];
 		int servPort = Integer.parseInt(serverAndPort[1]);
-		
-		// Convert input String to bytes using the default character encoding
+
+		// Gets list of desired columns and puts them in a string separated by spaces with the key in front with a ':'
 		StringBuilder attributeBuilder = new StringBuilder();
 		for (int i = 2; i < args.length; i++) {
 			attributeBuilder.append(args[i]);
@@ -21,10 +22,11 @@ public class dbclientRTP {
 				attributeBuilder.append(" "); // queries separated by spaces
 			}
 		}
-		
 		String attributeList = attributeBuilder.toString();		
 		String query = new StringBuilder(args[1] + ":" + attributeList + "*").toString();
-		byte[] byteBuffer = query.getBytes();		
+
+        // Convert input String to bytes using the default character encoding
+		byte[] byteBuffer = query.getBytes(Charset.forName("UTF-8"));
 		
 		// Create socket that is connected to server on specified port
 		// TODO: connect

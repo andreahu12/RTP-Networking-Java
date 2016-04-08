@@ -32,7 +32,7 @@ public class Packet {
 
 	private int checksum = 0; //8
 
-	// TODO: fix dependencies
+	//TODO: fix dependencies
 	private int payloadSize = 0; // 6
 	/*
 	 * PAYLOAD
@@ -41,14 +41,12 @@ public class Packet {
 	
 	/**
 	 * Creates a packet object.
-	 * @param boolean FIN
-	 * @param boolean ACK
-	 * @param boolean SYN
-	 * @param int sequenceNumber
-	 * @param int ackNumber
-	 * @param int clientAddress
-	 * @param int clientPort
-	 * @param byte[] payload
+	 * @param FIN
+	 * @param ACK
+	 * @param SYN
+	 * @param sequenceNumber
+	 * @param ackNumber
+	 * @param payload
 	 */
 	public Packet(boolean FIN, boolean ACK, boolean SYN, int sequenceNumber, 
 			int ackNumber, byte[] payload) {

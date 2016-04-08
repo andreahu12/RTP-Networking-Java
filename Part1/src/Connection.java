@@ -8,6 +8,7 @@ import java.util.Queue;
 /**
  * Connections represent RTP connections for easy variable access
  * within the RTP class.
+ * Holds connection information.
  * @author andreahu
  *
  */
@@ -98,8 +99,6 @@ public class Connection {
 	 * Only adds non-duplicate sequence number payloads to the server buffer. 
 	 * Does not acknowledge the packet.
 	 * Adds to the sequence number to hash map.
-	 * @param ackNum
-	 * @param payload
 	 */
 	public void addToSendBuffer(byte[] rtpPacket) {
 		int packetsize = rtpPacket.length;

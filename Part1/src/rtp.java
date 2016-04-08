@@ -54,22 +54,24 @@ public class rtp {
 
         System.out.println(socket.getLocalAddress());
         System.out.println(socket.getLocalPort());
-        
-		String clientAddressStr = socket.getInetAddress().getHostAddress();
-		String clientPortStr = String.valueOf(socket.getPort());
-		
-		int clientAddress = ByteBuffer.wrap(socket.getInetAddress().getAddress()).getInt();
-		int clientPort = socket.getPort();
-		
+
+        //get client addresses as string
+		String clientAddressStr = socket.getLocalAddress().getHostAddress();
+		String clientPortStr = String.valueOf(socket.getLocalPort());
+
+        //get client addresses as ints
+		int clientAddress = ByteBuffer.wrap(socket.getLocalAddress().getAddress()).getInt();
+		int clientPort = socket.getLocalPort();
+
+        //check if connection established
 		if (getConnection(clientAddressStr, clientPortStr) != null) {
 			System.out.println("Connection has already been established");
 			return true;
 		}
-		
+
+
 		try {
-			Connection c = createConnection(
-					socket.getInetAddress(), socket.getPort(),
-					serverIP, serverPort);
+			Connection c = createConnection(socket.getLocalAddress(), socket.getLocalPort(), serverIP, serverPort);
 			c.setWindowSize(windowSizeInBytes);
 			
 			/*
@@ -158,8 +160,6 @@ public class rtp {
 	
 	/**
 	 * Makes a SYN packet for part 1 of the 3-way handshake
-	 * @param clientAddress
-	 * @param clientPort
 	 * @param serverIP
 	 * @param serverPort
 	 * @return
@@ -175,7 +175,7 @@ public class rtp {
 	
 	/**
 	 * Accepts connect() requests from a client at the server. <br>
-	 * Creates a conncection object on server-side. <br>
+	 * Creates a connection object on server-side. <br>
 	 * Only to be called at the server.
 	 */
 	public static void accept() {
