@@ -29,6 +29,9 @@ public class Packet {
 	private int sequenceNumber = 0; // 3
 	private int ackNumber = 0; // 4
 	private int remainingBufferSize = 0; // 5
+
+	private int checksum = 0; //8
+
 	// TODO: fix dependencies
 	private int payloadSize = 0; // 6
 	/*

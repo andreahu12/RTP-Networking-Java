@@ -45,26 +45,21 @@ public class rtp {
 	 * Makes a connection object on client side. <br>
 	 * Assigns window size to the connection.
 	 * @param windowSizeInBytes
-	 * @param clientSocket
-	 * @param serverSocket
 	 * @return whether or not the connection attempt succeeded
 	 * @throws Exception 
 	 */
 	@SuppressWarnings("finally")
 	public static boolean connect(InetAddress serverIP, int serverPort, int windowSizeInBytes) throws Exception {
+		socket = new DatagramSocket();
+
+        System.out.println(socket.getLocalAddress());
+        System.out.println(socket.getLocalPort());
+        
+		String clientAddressStr = socket.getInetAddress().getHostAddress();
+		String clientPortStr = String.valueOf(socket.getPort());
 		
-		if (socket == null) {
-			System.out.println("rtp.Connect: Client Socket is null");
-			return false;
-		}
-		
-		DatagramSocket clientSocket = new DatagramSocket();
-		
-		String clientAddressStr = clientSocket.getInetAddress().getHostAddress();
-		String clientPortStr = String.valueOf(clientSocket.getPort());
-		
-		int clientAddress = ByteBuffer.wrap(clientSocket.getInetAddress().getAddress()).getInt();
-		int clientPort = clientSocket.getPort();
+		int clientAddress = ByteBuffer.wrap(socket.getInetAddress().getAddress()).getInt();
+		int clientPort = socket.getPort();
 		
 		if (getConnection(clientAddressStr, clientPortStr) != null) {
 			System.out.println("Connection has already been established");
@@ -73,7 +68,7 @@ public class rtp {
 		
 		try {
 			Connection c = createConnection(
-					clientSocket.getInetAddress(), clientSocket.getPort(), 
+					socket.getInetAddress(), socket.getPort(),
 					serverIP, serverPort);
 			c.setWindowSize(windowSizeInBytes);
 			
@@ -87,7 +82,7 @@ public class rtp {
 			// Create SYNbit = 1, Seq = x packet
 			DatagramPacket SynPacketDP = makeSynPacket(serverIP, serverPort);
 			
-			clientSocket.send(SynPacketDP);
+			socket.send(SynPacketDP);
 			
 			DatagramPacket receivePacket = new DatagramPacket(
 					new byte[RECEIVE_PACKET_BUFFER_SIZE],
@@ -120,8 +115,8 @@ public class rtp {
 			e.printStackTrace();
 		} finally {
 			// remove the failed connection if necessary
-			String address = clientSocket.getInetAddress().getHostAddress();
-			String port = String.valueOf(clientSocket.getPort());
+			String address = socket.getInetAddress().getHostAddress();
+			String port = String.valueOf(socket.getPort());
 			if (clientPortToConnection.containsKey(generateKey(address, port))) {
 				clientPortToConnection.remove(address, port);
 			}
