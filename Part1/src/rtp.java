@@ -126,8 +126,8 @@ public class rtp {
 			e.printStackTrace();
 		} finally {
 			// remove the failed connection if necessary
-			String address = socket.getInetAddress().getHostAddress();
-			String port = String.valueOf(socket.getPort());
+			String address = socket.getLocalAddress().getHostAddress();
+			String port = String.valueOf(socket.getLocalPort());
 			if (clientPortToConnection.containsKey(generateKey(address, port))) {
 				clientPortToConnection.remove(address, port);
 			}
@@ -229,7 +229,7 @@ public class rtp {
 						// send the syn ack packet for the second handshake
 						DatagramPacket SynAckPacket = makeSynAckPacket(clientAddress, clientPort);
 						Connection c = createConnection(clientAddress, clientPort,
-								socket.getInetAddress(), socket.getPort());
+								socket.getLocalAddress(), socket.getLocalPort());
 						socket.send(SynAckPacket);
 						SynAckSent = true;
 					} 
@@ -360,8 +360,8 @@ public class rtp {
 	public static void write(byte[] data) {
 		// TODO: set the destination of each datagram packet
 		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data);
-		Connection c = getConnection(socket.getInetAddress().getHostAddress(), 
-				String.valueOf(socket.getPort()));
+		Connection c = getConnection(socket.getLocalAddress().getHostAddress(), 
+				String.valueOf(socket.getLocalPort()));
 
 		boolean canSendPacket = true;
 		while (packetsToSend.size() > 0) {
