@@ -4,6 +4,8 @@ import java.net.InetAddress;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Connections represent RTP connections for easy variable access
@@ -16,8 +18,8 @@ public class Connection {
 
 	private static final int MAX_RTP_PACKET_SIZE = 1000;
 	
-	private ConcurrentHashSet<Integer> receivedSequenceNumbers; // for checking for duplicates via seq num
-	private ConcurrentHashSet<Integer> receivedAckNumbers; // for checking for duplicates via ack num
+	private HashSet<Integer> receivedSequenceNumbers; // for checking for duplicates via seq num
+	private HashSet<Integer> receivedAckNumbers; // for checking for duplicates via ack num
 	
 	private InetAddress serverAddress;
 	private int serverPort;
@@ -50,8 +52,8 @@ public class Connection {
 		this.serverPort = serverPort;
 		this.clientPort = clientPort;
 
-		sendBuffer = new LinkedList<Byte>();
-		receiveBuffer = new LinkedList<Byte>();		
+		sendBuffer = new ConcurrentLinkedQueue<Byte>();
+		receiveBuffer = new ConcurrentLinkedQueue<Byte>();		
 	}
 	
 	/*
