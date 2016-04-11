@@ -16,8 +16,8 @@ public class Connection {
 
 	private static final int MAX_RTP_PACKET_SIZE = 1000;
 	
-	private HashSet<Integer> receivedSequenceNumbers; // for checking for duplicates via seq num
-	private HashSet<Integer> receivedAckNumbers; // for checking for duplicates via ack num
+	private ConcurrentHashSet<Integer> receivedSequenceNumbers; // for checking for duplicates via seq num
+	private ConcurrentHashSet<Integer> receivedAckNumbers; // for checking for duplicates via ack num
 	
 	private InetAddress serverAddress;
 	private int serverPort;
@@ -26,9 +26,9 @@ public class Connection {
 	
 	//flow control variables
 	private int MAX_WINDOW_SIZE; // of our recieve buffer
-	private Queue<Byte> sendBuffer;
+	private ConcurrentLinkedQueue<Byte> sendBuffer;
 	// remainingBufferSize = recieveBuffer max size - size(receiveBuffer)
-	private Queue<Byte> receiveBuffer; 
+	private ConcurrentLinkedQueue<Byte> receiveBuffer; 
 	private int lastByteSent; // LastByteSent - LastByteAcked <= rwnd
 	private int lastByteAcked;
 	// rwnd is sent in the header and calculated in send

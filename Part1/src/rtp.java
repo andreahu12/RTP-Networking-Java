@@ -16,8 +16,8 @@ public class rtp {
 	// TODO: implement sending acknowledgements
 	
 	// string key is client IP + client port
-	private static HashMap<String, Connection> clientPortToConnection
-		= new HashMap<String, Connection>(); // for demultiplexing
+	private static ConcurrentHashMap<String, Connection> clientPortToConnection
+		= new ConcurrentHashMap<String, Connection>(); // for demultiplexing
 	private static int RECEIVE_PACKET_BUFFER_SIZE = 2048; // arbitrary value
 //	private static int TIMEOUT = 2000; // arbitrary milliseconds
 	private static final int MAX_SEGMENT_SIZE = 972; 
