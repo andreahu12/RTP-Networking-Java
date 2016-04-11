@@ -41,7 +41,6 @@ public class rtp {
 	}
 	
 
-	
 	/**
 	 * Establishes an RTP connection using TCP's 3-way Handshake.<br>
 	 * Makes a connection object on client side. <br>
@@ -70,7 +69,6 @@ public class rtp {
 			System.out.println("Connection has already been established");
 			return true;
 		}
-
 
 		try {
 			Connection c = createConnection(socket.getLocalAddress(), socket.getLocalPort(), serverIP, serverPort);
@@ -177,11 +175,27 @@ public class rtp {
 	 */
 	private static DatagramPacket makeSynPacket(InetAddress serverIP, int serverPort) {
 		Packet SynPacket = new Packet(false, false, true, 0, 0, null);
+		System.out.println("MAKING SYN PACKET---------------");
 		byte[] SynPacketBytes = SynPacket.packetize();
 		
 		DatagramPacket SynPacketDP = new DatagramPacket(SynPacketBytes, SynPacketBytes.length, 
 				serverIP, serverPort);
+		Packet afterPacketize = rtpBytesToPacket(SynPacketBytes);
+		
+		printRtpPacketFlags(afterPacketize);
+		
+		System.out.println("--------------------------------");
 		return SynPacketDP;
+	}
+	
+	/**
+	 * Prints the values of FIN, SYN, and ACK
+	 * @param p
+	 */
+	private static void printRtpPacketFlags(Packet p) {
+		System.out.println("FIN: " + p.getFIN());
+		System.out.println("SYN: " + p.getSYN());
+		System.out.println("ACK: " + p.getACK());
 	}
 	
 	/**
@@ -194,21 +208,23 @@ public class rtp {
 				new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 		
 //		while (true) {
-			System.out.println("In accept....");
+			System.out.println("In rtp.accept....");
 			boolean SynAckSent = false;
 			try {
 				// TODO: MAKE THIS THREAD SAFE
 				socket.receive(receivePacket);
-				System.out.println("accept: received a packet");
+				System.out.println("rtp.accept: socket.receive finished calling");
 				
 				if (receivePacket != null) {
-					System.out.println("accept: received a not null packet");
+					System.out.println("rtp.accept: received a not null packet");
 					Packet rtpReceivePacket = rtpBytesToPacket(receivePacket.getData());
 					InetAddress clientAddress = receivePacket.getAddress();
 					int clientPort = receivePacket.getPort();
 					
+					printRtpPacketFlags(rtpReceivePacket);
+					
 					if (rtpReceivePacket.getSYN()) {
-						System.out.println("accept: received a SYN packet");
+						System.out.println("rtp.accept: received a SYN packet");
 						// got the syn packet from the first handshake
 						// send the syn ack packet for the second handshake
 						DatagramPacket SynAckPacket = makeSynAckPacket(clientAddress, clientPort);
@@ -219,12 +235,14 @@ public class rtp {
 					} 
 					
 					if (SynAckSent && rtpReceivePacket.getACK()) {
-						System.out.println("accept: received a SYN ACK packet");
+						System.out.println("rtp.accept: received a SYN ACK packet");
 						// check for ack packet in 3rd handshake
 						// received ack? make a connection
 						Connection c = getConnection(clientAddress.getHostAddress(), 
 								String.valueOf(clientPort));
 					}
+				} else {
+					System.out.println("rtp.accept: got a null packet");
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
@@ -444,8 +462,14 @@ public class rtp {
 	 * @return number of bytes read
 	 */
 	public static int read(byte[] writeToBuffer, int numBytesRequested) {
-		Connection c = getConnection(socket.getInetAddress().getHostAddress(), 
-				String.valueOf(socket.getPort()));
+		System.out.println("rtp.read socket: " + socket);
+		Connection c = getConnection(socket.getLocalAddress().getHostAddress(), 
+				String.valueOf(socket.getLocalPort()));
+		
+		if (c == null) {
+			// connection does not exist yet
+			return -1;
+		}
 		
 		int numBytesReturned = Math.min(numBytesRequested, c.getReceiveBufferSize());
 		
@@ -480,21 +504,25 @@ public class rtp {
 	 * @return
 	 * @throws Exception 
 	 */
-	private static Packet rtpBytesToPacket(byte[] rtpResultBytes) throws Exception {
-		if (rtpResultBytes == null) {
-			throw new Exception("rtp.rtpBytesToPacket: rtpResultBytes is null");
+	private static Packet rtpBytesToPacket(byte[] rtpResultBytes) {
+		ByteBuffer buffer = ByteBuffer.wrap(rtpResultBytes);
+		
+		boolean FIN = (buffer.getInt() == 1); // if it equals 1, it is true
+		boolean ACK = (buffer.getInt() == 1); // if it equals 1, it is true
+		boolean SYN = (buffer.getInt() == 1); // if it equals 1, it is true
+		int seqNum = buffer.getInt();
+		int ackNum = buffer.getInt();
+		int remainingBufferSize = buffer.getInt();
+		int payloadSize = buffer.getInt();
+		byte[] payload = new byte[payloadSize];
+		
+		for (int i = 0; i < payloadSize; i++) {
+			payload[i] = buffer.get();
 		}
-		boolean FIN = getFinFromRtpPacket(rtpResultBytes);
-		boolean ACK = getAckFromRtpPacket(rtpResultBytes);
-		boolean SYN = getSynFromRtpPacket(rtpResultBytes);
-		int seqNum = getSeqNumFromRtpPacket(rtpResultBytes);
-		int ackNum = getAckNumFromRtpPacket(rtpResultBytes);
-		int remainingBufferSize = getRemainingBufferSizeFromRtpPacket(rtpResultBytes);
-		byte[] payload = getPayloadFromRtpPacket(rtpResultBytes);
 		
 		Packet result = new Packet(FIN, ACK, SYN, seqNum, ackNum, payload);
 		result.setRemainingBufferSize(remainingBufferSize);
-		
+
 		return result;
 	}
 
@@ -505,67 +533,94 @@ public class rtp {
 	 */
 	
 	private static boolean getFinFromRtpPacket(byte[] rtpPacket) {
-		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-		int resultAsInt = b.getInt(0);
-		if (resultAsInt == 1) {
-			return true;
-		}
-		return false;
+//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
+//		int resultAsInt = b.getInt(0);
+//		if (resultAsInt == 1) {
+//			return true;
+//		}
+		
+		Packet p = rtpBytesToPacket(rtpPacket);
+		
+		return p.getFIN();
 	}
 	
 	private static boolean getAckFromRtpPacket(byte[] rtpPacket) {
-		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-		int resultAsInt = b.getInt(1);
-		if (resultAsInt == 1) {
-			return true;
-		}
-		return false;
+//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
+//		int resultAsInt = b.getInt(1);
+//		if (resultAsInt == 1) {
+//			return true;
+//		}
+//		return false;
+		Packet p = rtpBytesToPacket(rtpPacket);
+		
+		return p.getACK();
 	}
 	
 	private static boolean getSynFromRtpPacket(byte[] rtpPacket) {
-		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-		int resultAsInt = b.getInt(2);
-		if (resultAsInt == 1) {
-			return true;
-		}
-		return false;
+//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
+//		int resultAsInt = b.getInt(2);
+//		System.out.println("getSynFromRtpPacket resultAsInt: " + resultAsInt);
+//		if (resultAsInt == 1) {
+//			return true;
+//		}
+//		return false;
+		Packet p = rtpBytesToPacket(rtpPacket);
+		
+		return p.getSYN();
 	}
 	
 	private static int getSeqNumFromRtpPacket(byte[] rtpPacket) {
-		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-		int resultAsInt = b.getInt(3);
-		return resultAsInt;
+//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
+//		int resultAsInt = b.getInt(3);
+//		return resultAsInt;
+		Packet p = rtpBytesToPacket(rtpPacket);
+		
+		return p.getSequenceNumber();
 	}
 	
 	private static int getAckNumFromRtpPacket(byte[] rtpPacket) {
-		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-		int resultAsInt = b.getInt(4);
-		return resultAsInt;
+//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
+//		int resultAsInt = b.getInt(4);
+//		return resultAsInt;
+		Packet p = rtpBytesToPacket(rtpPacket);
+		
+		return p.getAckNumber();
 	}
 	
 	private static int getRemainingBufferSizeFromRtpPacket(byte[] rtpPacket) {
-		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-		int resultAsInt = b.getInt(5);
-		return resultAsInt;
+//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
+//		int resultAsInt = b.getInt(5);
+//		return resultAsInt;
+		
+		Packet p = rtpBytesToPacket(rtpPacket);
+		
+		return p.getRemainingBufferSize();
 	}
 	
 	private static int getPayloadSizeFromRtpPacket(byte[] rtpPacket) {
-		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-		int resultAsInt = b.getInt(6);
-		return resultAsInt;
+//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
+//		int resultAsInt = b.getInt(6);
+//		return resultAsInt;
+		Packet p = rtpBytesToPacket(rtpPacket);
+		
+		return p.getPayloadSize();
 	}
 	
 	private static byte[] getPayloadFromRtpPacket(byte[] rtpPacket) {
-		int payloadSize = getPayloadSizeFromRtpPacket(rtpPacket);
-		int payloadStartIndex = 28; // first 28 (indices 0-27) bytes are header values
-		byte[] result = new byte[payloadSize];
+//		int payloadSize = getPayloadSizeFromRtpPacket(rtpPacket);
+//		int payloadStartIndex = 28; // first 28 (indices 0-27) bytes are header values
+//		byte[] result = new byte[payloadSize];
+//		
+//		// copy the payload over
+//		for (int i = 0; i < payloadSize; i++) {
+//			result[i] = rtpPacket[payloadStartIndex + i];
+//		}
+//		
+//		return result;
 		
-		// copy the payload over
-		for (int i = 0; i < payloadSize; i++) {
-			result[i] = rtpPacket[payloadStartIndex + i];
-		}
+		Packet p = rtpBytesToPacket(rtpPacket);
 		
-		return result;
+		return p.getPayload();
 	}
 	
 	/**
