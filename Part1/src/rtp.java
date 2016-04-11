@@ -16,7 +16,8 @@ public class rtp {
 	// TODO: implement sending acknowledgements
 	
 	// string key is client IP + client port
-	private static HashMap<String, Connection> clientPortToConnection; // for demultiplexing
+	private static HashMap<String, Connection> clientPortToConnection
+		= new HashMap<String, Connection>(); // for demultiplexing
 	private static int RECEIVE_PACKET_BUFFER_SIZE = 2048; // arbitrary value
 //	private static int TIMEOUT = 2000; // arbitrary milliseconds
 	private static final int MAX_SEGMENT_SIZE = 972; 
@@ -73,6 +74,7 @@ public class rtp {
 		try {
 			Connection c = createConnection(socket.getLocalAddress(), socket.getLocalPort(), serverIP, serverPort);
 			c.setWindowSize(windowSizeInBytes);
+			System.out.println("1. Created a connection object in hashmap");
 			
 			/*
 			 * implementation of 3 way handshake
@@ -83,15 +85,18 @@ public class rtp {
 			 */
 			// Create SYNbit = 1, Seq = x packet
 			DatagramPacket SynPacketDP = makeSynPacket(serverIP, serverPort);
-			
+			System.out.println("2. Made SYN packet");
 			socket.send(SynPacketDP);
+			System.out.println("3. Sent SYN packet");
 			
 			DatagramPacket receivePacket = new DatagramPacket(
 					new byte[RECEIVE_PACKET_BUFFER_SIZE],
 					RECEIVE_PACKET_BUFFER_SIZE);
 						
 			// TODO: LOCK THIS METHOD CALL
+			System.out.println("4. Waiting to receive SYN ACK...");
 			socket.receive(receivePacket);
+			System.out.println("4.1 Received: " + receivePacket);
 			
 			boolean validPacketReceived = false;
 			
@@ -103,10 +108,15 @@ public class rtp {
 					 */
 					// Create ACKbit = 1, ACKnum = y+1 packet
 					DatagramPacket ack = makeHandshakeAckPacket(clientAddress, clientPort, serverIP, serverPort);
+					System.out.println("5. Made SYN ACK");
 					socket.send(ack);
+					System.out.println("6. Sent SYN ACK");
 					validPacketReceived = true;
 				} else {
+					System.out.println("4.2 waiting to receive another packet");
 					socket.receive(receivePacket);
+					System.out.println("4.3  Received: " + receivePacket);
+					
 				}
 			}
 
@@ -183,17 +193,21 @@ public class rtp {
 				new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 		
 		while (true) {
+			System.out.println("In accept....");
 			boolean SynAckSent = false;
 			try {
 				// TODO: MAKE THIS THREAD SAFE
 				socket.receive(receivePacket);
+				System.out.println("accept: received a packet");
 				
 				if (receivePacket != null) {
+					System.out.println("accept: received a not null packet");
 					Packet rtpReceivePacket = rtpBytesToPacket(receivePacket.getData());
 					InetAddress clientAddress = receivePacket.getAddress();
 					int clientPort = receivePacket.getPort();
 					
 					if (rtpReceivePacket.getSYN()) {
+						System.out.println("accept: received a SYN packet");
 						// got the syn packet from the first handshake
 						// send the syn ack packet for the second handshake
 						DatagramPacket SynAckPacket = makeSynAckPacket(clientAddress, clientPort);
@@ -204,6 +218,7 @@ public class rtp {
 					} 
 					
 					if (SynAckSent && rtpReceivePacket.getACK()) {
+						System.out.println("accept: received a SYN ACK packet");
 						// check for ack packet in 3rd handshake
 						// received ack? make a connection
 						Connection c = getConnection(clientAddress.getHostAddress(), 
