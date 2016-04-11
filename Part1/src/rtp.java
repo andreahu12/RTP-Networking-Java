@@ -193,7 +193,7 @@ public class rtp {
 		DatagramPacket receivePacket = new DatagramPacket(
 				new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 		
-		while (true) {
+//		while (true) {
 			System.out.println("In accept....");
 			boolean SynAckSent = false;
 			try {
@@ -229,7 +229,7 @@ public class rtp {
 			} catch (Exception e) {
 				e.printStackTrace();
 			}
-		}
+//		}
 	}
 
 	
