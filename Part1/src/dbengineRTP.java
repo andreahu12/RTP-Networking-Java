@@ -2,11 +2,20 @@ import java.net.*;
 import java.io.*;
 import java.util.HashMap;
 
+/**
+ * An example of how to use RTP as a server to connect to multiple clients
+ */
 public class dbengineRTP {
 	private static final int BUFSIZE = 2048;//32; // SIZE OF THE RECEIVE BUFFER
 	private static HashMap<String, String[]> db = new HashMap<String, String[]>();
-			
-	
+
+	/**
+	 * Thread 1: socket(), bind(), listen(), start thread 2, accept()
+     * Thread 2: receive()
+     * Thread 3-n: send()
+	 * @param args
+	 * @throws Exception
+     */
 	public static void main(String[] args) throws Exception {
 		if (args.length != 1) {
 			throw new IllegalArgumentException("Parameter(s): <Port>");
@@ -21,8 +30,12 @@ public class dbengineRTP {
 		
 		int recvMsgSize; // Size of received message
 		byte[] byteBuffer = new byte[BUFSIZE]; // Receive buffer
-		
-		for (;;) {
+
+        /**
+         * Listens for incoming connections by checking the SYN buffer for a package
+         * Creates a new thread for each connection to send packages to said connection
+         */
+        for (;;) {
 			rtp.accept();
 			
 //			System.out.println("Handling client at " + clientAddress + " on Port " + clientPort);
@@ -185,4 +198,44 @@ public class dbengineRTP {
 
 		return result;
 	}
+
+    /**
+     * The thread for any specific connection. starts when accept accepts a connection
+     * Do not implement until we have single thread working first
+     */
+    private class ConnectionThread extends Thread{
+        /**
+         * Constructor if we need it
+         */
+        ConnectionThread(){
+        }
+
+        /**
+         * called by start()
+         */
+        @Override
+        public void run(){
+
+        }
+    }
+
+    /**
+     * The thread for receiving data. starts when accept accept starts
+     * Do not implement until we have one working first
+     */
+    private class ReceiveThread extends Thread{
+        /**
+         * Constructor if we need it
+         */
+        ReceiveThread(){
+        }
+
+        /**
+         * called by start()
+         */
+        @Override
+        public void run(){
+
+        }
+    }
 }

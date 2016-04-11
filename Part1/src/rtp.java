@@ -45,6 +45,8 @@ public class rtp {
 	 * Establishes an RTP connection using TCP's 3-way Handshake.<br>
 	 * Makes a connection object on client side. <br>
 	 * Assigns window size to the connection.
+     *
+     * TODO: Should ideally return a connection object so that the user can say Connection x = rtp.connect(...)
 	 * @param windowSizeInBytes
 	 * @return whether or not the connection attempt succeeded
 	 * @throws Exception 
@@ -356,6 +358,8 @@ public class rtp {
 	 * Converts data to a bytestream and sends packets to the other end.
 	 * TODO: THIS ONLY SENDS FROM CLIENT TO SERVER FOR NOW
 	 * TODO: FIND A WAY TO TELL THE SERVER WHICH CLIENT TO SEND TO
+     *
+     * Sends a message. Finishes when the ack is received.
 	 * @param data
 	 */
 	public static void write(byte[] data) {
@@ -458,6 +462,8 @@ public class rtp {
 	 * TODO: RETRIEVE THE CORRECT CONNECTION AT THE SERVER SIDE TOO
 	 * Reads a specified number of bytes (or less depending on the buffer size)
 	 * and write them to the byte buffer provided.
+     *
+     * accepts a connection and adds it to the corresponding buffer(either the syn buffer or the correct connection's)
 	 * @param writeToBuffer
 	 * @param numBytesRequested
 	 * @return number of bytes read

@@ -4,10 +4,21 @@ import java.io.*;
 import java.lang.StringBuilder;
 import java.nio.charset.Charset;
 
+/**
+ * An example of how to use RTP as a client to connect to a server
+ */
 public class dbclientRTP {
+
+    /**
+     * Thread 1: socket(), connect(), start thread 2, send()
+     * Thread 2: Receive()
+     * @param args
+     * @throws IOException
+     */
 	public static void main(String[] args) throws IOException {
 		if ((args.length < 3)) {
-			throw new IllegalArgumentException("Parameters: <Server>:<Port> <Query Key> <Query Attribute> ... <Query Attribute>");
+			throw new IllegalArgumentException("Parameters: <Server>:<Port> <Query Key> " +
+                    "<Query Attribute> ... <Query Attribute>");
 		}
 		// get args from command line
 		String[] serverAndPort = separate(args[0]);
@@ -36,7 +47,6 @@ public class dbclientRTP {
 		try {
 			rtp.connect(serverIP, servPort, windowSizeInBytes);
 		} catch (Exception e1) {
-			// TODO Auto-generated catch block
 			e1.printStackTrace();
 		}
 		
@@ -104,4 +114,24 @@ public class dbclientRTP {
 		
 		return result;
 	}
+
+    /**
+     * The thread for receiving data. starts when accept accept starts
+     * Do not implement until we have one working first
+     */
+    private class ReceiveThread extends Thread{
+        /**
+         * Constructor if we need it
+         */
+        ReceiveThread(){
+        }
+
+        /**
+         * called by start()
+         */
+        @Override
+        public void run(){
+
+        }
+    }
 }
