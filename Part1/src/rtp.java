@@ -95,21 +95,22 @@ public class rtp {
 			// TODO: LOCK THIS METHOD CALL
 			System.out.println("4. Waiting to receive SYN ACK...");
 			socket.receive(receivePacket);
-			System.out.println("4.1 Received: " + receivePacket);
+			System.out.println("4.1 Received a datagram packet: " + receivePacket);
 			
 			boolean validPacketReceived = false;
 			
 			while (!validPacketReceived) {
 				Packet receivePacketRTP = rtpBytesToPacket(receivePacket.getData());
 				if ((receivePacket != null) && (receivePacketRTP.getACK()) && (receivePacketRTP.getSYN())) {
+					System.out.println("5. Received a SYN ACK packet");
 					/*
 					 * HANDSHAKE 3: CLIENT --> SERVER
 					 */
 					// Create ACKbit = 1, ACKnum = y+1 packet
 					DatagramPacket ack = makeHandshakeAckPacket(clientAddress, clientPort, serverIP, serverPort);
-					System.out.println("5. Made SYN ACK");
+					System.out.println("6. Made ACK");
 					socket.send(ack);
-					System.out.println("6. Sent SYN ACK");
+					System.out.println("7. Sent ACK");
 					validPacketReceived = true;
 				} else {
 					System.out.println("4.2 waiting to receive another packet");
@@ -162,8 +163,8 @@ public class rtp {
 	private static DatagramPacket makeSynAckPacket(InetAddress clientIP, int clientPort) {
 		Packet packet2 = new Packet(false, true, true, 0, 1, null);
 		byte[] packet2bytes = packet2.packetize();
-		DatagramPacket p2 = new DatagramPacket(packet2bytes, packet2bytes.length, 
-				clientIP, clientPort);
+		
+		DatagramPacket p2 = new DatagramPacket(packet2bytes, packet2bytes.length, clientIP, clientPort);
 		return p2;
 	}
 	
@@ -175,16 +176,11 @@ public class rtp {
 	 */
 	private static DatagramPacket makeSynPacket(InetAddress serverIP, int serverPort) {
 		Packet SynPacket = new Packet(false, false, true, 0, 0, null);
-		System.out.println("MAKING SYN PACKET---------------");
 		byte[] SynPacketBytes = SynPacket.packetize();
 		
 		DatagramPacket SynPacketDP = new DatagramPacket(SynPacketBytes, SynPacketBytes.length, 
 				serverIP, serverPort);
-		Packet afterPacketize = rtpBytesToPacket(SynPacketBytes);
 		
-		printRtpPacketFlags(afterPacketize);
-		
-		System.out.println("--------------------------------");
 		return SynPacketDP;
 	}
 	
@@ -208,7 +204,7 @@ public class rtp {
 				new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 		
 //		while (true) {
-			System.out.println("In rtp.accept....");
+			System.out.println("\nIn rtp.accept....");
 //			boolean SynAckSent = false;
 			try {
 				// TODO: MAKE THIS THREAD SAFE
@@ -236,7 +232,7 @@ public class rtp {
 					
 //					if (SynAckSent && rtpReceivePacket.getACK()) {
 					if (rtpReceivePacket.getACK()) {
-						System.out.println("rtp.accept: received a SYN ACK packet");
+						System.out.println("rtp.accept: received an ACK packet");
 						// check for ack packet in 3rd handshake
 						// received ack? make a connection
 						Connection c = getConnection(clientAddress.getHostAddress(), 
@@ -522,8 +518,8 @@ public class rtp {
 		}
 		
 		Packet result = new Packet(FIN, ACK, SYN, seqNum, ackNum, payload);
+		
 		result.setRemainingBufferSize(remainingBufferSize);
-
 		return result;
 	}
 
