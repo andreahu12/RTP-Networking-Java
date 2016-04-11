@@ -209,7 +209,7 @@ public class rtp {
 		
 //		while (true) {
 			System.out.println("In rtp.accept....");
-			boolean SynAckSent = false;
+//			boolean SynAckSent = false;
 			try {
 				// TODO: MAKE THIS THREAD SAFE
 				socket.receive(receivePacket);
@@ -231,10 +231,11 @@ public class rtp {
 						Connection c = createConnection(clientAddress, clientPort,
 								socket.getLocalAddress(), socket.getLocalPort());
 						socket.send(SynAckPacket);
-						SynAckSent = true;
+//						SynAckSent = true;
 					} 
 					
-					if (SynAckSent && rtpReceivePacket.getACK()) {
+//					if (SynAckSent && rtpReceivePacket.getACK()) {
+					if (rtpReceivePacket.getACK()) {
 						System.out.println("rtp.accept: received a SYN ACK packet");
 						// check for ack packet in 3rd handshake
 						// received ack? make a connection
