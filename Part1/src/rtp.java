@@ -534,93 +534,42 @@ public class rtp {
 	 */
 	
 	private static boolean getFinFromRtpPacket(byte[] rtpPacket) {
-//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-//		int resultAsInt = b.getInt(0);
-//		if (resultAsInt == 1) {
-//			return true;
-//		}
-		
 		Packet p = rtpBytesToPacket(rtpPacket);
-		
 		return p.getFIN();
 	}
 	
 	private static boolean getAckFromRtpPacket(byte[] rtpPacket) {
-//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-//		int resultAsInt = b.getInt(1);
-//		if (resultAsInt == 1) {
-//			return true;
-//		}
-//		return false;
 		Packet p = rtpBytesToPacket(rtpPacket);
-		
 		return p.getACK();
 	}
 	
 	private static boolean getSynFromRtpPacket(byte[] rtpPacket) {
-//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-//		int resultAsInt = b.getInt(2);
-//		System.out.println("getSynFromRtpPacket resultAsInt: " + resultAsInt);
-//		if (resultAsInt == 1) {
-//			return true;
-//		}
-//		return false;
 		Packet p = rtpBytesToPacket(rtpPacket);
-		
 		return p.getSYN();
 	}
 	
 	private static int getSeqNumFromRtpPacket(byte[] rtpPacket) {
-//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-//		int resultAsInt = b.getInt(3);
-//		return resultAsInt;
 		Packet p = rtpBytesToPacket(rtpPacket);
-		
 		return p.getSequenceNumber();
 	}
 	
 	private static int getAckNumFromRtpPacket(byte[] rtpPacket) {
-//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-//		int resultAsInt = b.getInt(4);
-//		return resultAsInt;
 		Packet p = rtpBytesToPacket(rtpPacket);
-		
 		return p.getAckNumber();
 	}
 	
 	private static int getRemainingBufferSizeFromRtpPacket(byte[] rtpPacket) {
-//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-//		int resultAsInt = b.getInt(5);
-//		return resultAsInt;
-		
 		Packet p = rtpBytesToPacket(rtpPacket);
-		
 		return p.getRemainingBufferSize();
 	}
 	
 	private static int getPayloadSizeFromRtpPacket(byte[] rtpPacket) {
-//		ByteBuffer b = ByteBuffer.wrap(rtpPacket);
-//		int resultAsInt = b.getInt(6);
-//		return resultAsInt;
 		Packet p = rtpBytesToPacket(rtpPacket);
-		
 		return p.getPayloadSize();
 	}
 	
 	private static byte[] getPayloadFromRtpPacket(byte[] rtpPacket) {
-//		int payloadSize = getPayloadSizeFromRtpPacket(rtpPacket);
-//		int payloadStartIndex = 28; // first 28 (indices 0-27) bytes are header values
-//		byte[] result = new byte[payloadSize];
-//		
-//		// copy the payload over
-//		for (int i = 0; i < payloadSize; i++) {
-//			result[i] = rtpPacket[payloadStartIndex + i];
-//		}
-//		
-//		return result;
-		
 		Packet p = rtpBytesToPacket(rtpPacket);
-		
 		return p.getPayload();
 	}
 	
