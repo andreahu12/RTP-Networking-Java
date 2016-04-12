@@ -74,7 +74,7 @@ public class dbclientRTP {
 			System.out.println("From Server: " + new String(byteBuffer));
 			
 			// TODO: close the connection
-			rtp.close(c, SocketToCloseIs.ClientSocket); // Close the socket and its streams
+			rtp.close(c); // Close the socket and its streams
 			
 		} catch (Exception e) {
 			e.printStackTrace();

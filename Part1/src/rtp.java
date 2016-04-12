@@ -57,6 +57,7 @@ public class rtp {
 	 */
 	@SuppressWarnings("finally")
 	public static Connection connect(InetAddress serverIP, int serverPort, int windowSizeInBytes) throws Exception {
+		System.out.println("\n----------------- Connect --------------------");
 		socket = new DatagramSocket();
 
         System.out.println(socket.getLocalAddress());
@@ -123,24 +124,27 @@ public class rtp {
 					System.out.println("4.2 waiting to receive another packet");
 					socket.receive(receivePacket);
 					System.out.println("4.3  Received: " + receivePacket);
-					
 				}
 			}
+			
+			System.out.println("rtp.connect: returning " + c);
+			System.out.println("----------------- end Connect --------------------\n");
 			return c;
 			
 		} catch (Exception e) {
 			System.out.println("<-----------rtp.Connect Failed-------------->");
 			e.printStackTrace();
-		} finally {
+			
 			// remove the failed connection if necessary
 			String address = socket.getLocalAddress().getHostAddress();
 			String port = String.valueOf(socket.getLocalPort());
 			if (clientPortToConnection.containsKey(generateKey(address, port))) {
 				clientPortToConnection.remove(address, port);
 			}
+			System.out.println("rtp.connect: returning " + null);
+			System.out.println("----------------- end Connect --------------------\n");
 			return null;
 		}
-
 	}
 	
 	/**
@@ -255,22 +259,26 @@ public class rtp {
 
 	
 	/**
-	 * USER NOTE: ONLY CLIENTS SHOULD CALL THIS
-     * TODO:make servers able to call this
 	 * Closes the RTP connection using the algorithm TCP uses. <br>
 	 * Only closes the client socket. <br>
 	 * Leaves the server socket open since server socket needs to stay open. <br>
 	 * Removes connection from rtp connection hashmap.
 	 * @throws IOException 
 	 */
-	public static void close(Connection c, SocketToCloseIs s) throws Exception {
+	public static void close(Connection c) throws Exception {
 		
 		if (c == null) {
 			System.out.println("rtp.close: cannot close nonexistent connection");
 			return;
 		}
 		
-		boolean closeClientSocket = (s == SocketToCloseIs.ClientSocket);
+		InetAddress localAddress = socket.getLocalAddress();
+		int localPort = socket.getLocalPort();
+		
+		InetAddress clientAddress = c.getClientAddress();
+		int clientPort = c.getClientPort();
+		
+		boolean closeClientSocket = (localAddress.equals(clientAddress)) && (localPort == clientPort);
 		
 		// if we want to close the client socket, we need to send a packet to the server
 		InetAddress destinationAddress = closeClientSocket ? c.getServerAddress() : c.getClientAddress();
@@ -340,7 +348,7 @@ public class rtp {
 	 * NOTE TO USER: make sure to set the packet destination IP + Port<br>
 	 * @param destIP
 	 * @param destPort
-	 * @return
+	 * @return a FIN acknowledgement packet
 	 */
 	private static DatagramPacket makeFinAckPacket(Packet packetToAck, boolean toClientFromServer) {
 		int ackNumber = packetToAck.getSequenceNumber() + 1;
@@ -511,7 +519,7 @@ public class rtp {
 	/**
 	 * Converts an array of rtpResultBytes into an rtp packet object
 	 * @param rtpResultBytes
-	 * @return
+	 * @return RTP Packet form of the byte array
 	 * @throws Exception 
 	 */
 	private static Packet rtpBytesToPacket(byte[] rtpResultBytes) {
@@ -542,41 +550,81 @@ public class rtp {
 	 * PRIVATE METHODS
 	 */
 	
+	/**
+	 * Take the bytes representing an RTP packet, and return the value of the FIN flag
+	 * @param rtpPacket
+	 * @return FIN
+	 */
 	private static boolean getFinFromRtpPacket(byte[] rtpPacket) {
 		Packet p = rtpBytesToPacket(rtpPacket);
 		return p.getFIN();
 	}
 	
+	/**
+	 * Take the bytes representing an RTP packet, and return the value of the ACK flag
+	 * @param rtpPacket
+	 * @return ACK
+	 */
 	private static boolean getAckFromRtpPacket(byte[] rtpPacket) {
 		Packet p = rtpBytesToPacket(rtpPacket);
 		return p.getACK();
 	}
 	
+	/**
+	 * Take the bytes representing an RTP packet, and return the value of the SYN flag
+	 * @param rtpPacket
+	 * @return SYN
+	 */
 	private static boolean getSynFromRtpPacket(byte[] rtpPacket) {
 		Packet p = rtpBytesToPacket(rtpPacket);
 		return p.getSYN();
 	}
 	
+	/**
+	 * Take the bytes representing an RTP packet, and return the Sequence Number
+	 * @param rtpPacket
+	 * @return Sequence Number
+	 */
 	private static int getSeqNumFromRtpPacket(byte[] rtpPacket) {
 		Packet p = rtpBytesToPacket(rtpPacket);
 		return p.getSequenceNumber();
 	}
 	
+	/**
+	 * Take the bytes representing an RTP packet, and return the Ack Number
+	 * @param rtpPacket
+	 * @return Ack Number
+	 */
 	private static int getAckNumFromRtpPacket(byte[] rtpPacket) {
 		Packet p = rtpBytesToPacket(rtpPacket);
 		return p.getAckNumber();
 	}
 	
+	/**
+	 * Take the bytes representing an RTP packet, and return the remaining buffer size
+	 * @param rtpPacket
+	 * @return Remaining Buffer Size
+	 */
 	private static int getRemainingBufferSizeFromRtpPacket(byte[] rtpPacket) {
 		Packet p = rtpBytesToPacket(rtpPacket);
 		return p.getRemainingBufferSize();
 	}
 	
+	/**
+	 * Take the bytes representing an RTP packet, and return the payload size
+	 * @param rtpPacket
+	 * @return Payload Size
+	 */
 	private static int getPayloadSizeFromRtpPacket(byte[] rtpPacket) {
 		Packet p = rtpBytesToPacket(rtpPacket);
 		return p.getPayloadSize();
 	}
 	
+	/**
+	 * Take the bytes representing an RTP packet, and return the payload
+	 * @param rtpPacket
+	 * @return Payload
+	 */
 	private static byte[] getPayloadFromRtpPacket(byte[] rtpPacket) {
 		Packet p = rtpBytesToPacket(rtpPacket);
 		return p.getPayload();

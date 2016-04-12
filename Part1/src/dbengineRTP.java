@@ -41,51 +41,50 @@ public class dbengineRTP {
 			
 //			System.out.println("Handling client at " + clientAddress + " on Port " + clientPort);
 			
-//			while ((recvMsgSize = in.read(byteBuffer)) != -1) {
-			while ((recvMsgSize = rtp.receive(byteBuffer, 500, c)) != -1) {
-				// "query" here
-				String[] query = separate(new String(byteBuffer));
-				String queryId = query[0];
-				String attributes = query[1];
-				
-				System.out.println("\n-------READING MESSAGE AT SERVER------------");
-				System.out.println("byteBuffer: " + new String(byteBuffer));
-				System.out.println("query: " + query);
-				System.out.println("queryId: " + queryId);
-				System.out.println("attributes: " + attributes);
-				System.out.println("-------END: READING MESSAGE AT SERVER-------\n");
-				
-				if (!db.containsKey(queryId)) {
-					throw new Exception("GTID does not exist in the database");
-				}
-				
-				String[] row = db.get(queryId);
-				
-				String[] attributeList = getAttributeList(attributes);
-				
-				StringBuilder resultBuilder = new StringBuilder();
-				
-				boolean isFirstAttribute = true;
-				
-				int numAttributes = Integer.valueOf(attributeList[0]);
-				for (int i = 1; i <= numAttributes; i++) {
-					String queryResult = getValue(row, attributeList[i]);
-					
-					if (isFirstAttribute) {
-						resultBuilder.append(attributeList[i] + ": " + queryResult);
-						isFirstAttribute = false;
-					} else {
-						resultBuilder.append(", " + attributeList[i] + ": " + queryResult);
-					}
-				}
-				
-				
-				String resultString = resultBuilder.toString();		
-				byte[] resultBuffer = resultString.getBytes();
-				
-				// TODO: IMPLEMENT SENDING DATA TO THE CLIENT
-				rtp.send(resultBuffer, c);
-			}
+//			while ((recvMsgSize = rtp.receive(byteBuffer, 500, c)) != -1) {
+//				// "query" here
+//				String[] query = separate(new String(byteBuffer));
+//				String queryId = query[0];
+//				String attributes = query[1];
+//				
+//				System.out.println("\n-------READING MESSAGE AT SERVER------------");
+//				System.out.println("byteBuffer: " + new String(byteBuffer));
+//				System.out.println("query: " + query);
+//				System.out.println("queryId: " + queryId);
+//				System.out.println("attributes: " + attributes);
+//				System.out.println("-------END: READING MESSAGE AT SERVER-------\n");
+//				
+//				if (!db.containsKey(queryId)) {
+//					throw new Exception("GTID does not exist in the database");
+//				}
+//				
+//				String[] row = db.get(queryId);
+//				
+//				String[] attributeList = getAttributeList(attributes);
+//				
+//				StringBuilder resultBuilder = new StringBuilder();
+//				
+//				boolean isFirstAttribute = true;
+//				
+//				int numAttributes = Integer.valueOf(attributeList[0]);
+//				for (int i = 1; i <= numAttributes; i++) {
+//					String queryResult = getValue(row, attributeList[i]);
+//					
+//					if (isFirstAttribute) {
+//						resultBuilder.append(attributeList[i] + ": " + queryResult);
+//						isFirstAttribute = false;
+//					} else {
+//						resultBuilder.append(", " + attributeList[i] + ": " + queryResult);
+//					}
+//				}
+//				
+//				
+//				String resultString = resultBuilder.toString();		
+//				byte[] resultBuffer = resultString.getBytes();
+//				
+//				// TODO: IMPLEMENT SENDING DATA TO THE CLIENT
+//				rtp.send(resultBuffer, c);
+//			}
 			
 			// ah: can't close the client socket from the server
 	//			clntSock.close(); // Close the socket. We are done with this client!
