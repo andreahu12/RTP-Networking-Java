@@ -36,16 +36,24 @@ public class dbengineRTP {
          * Creates a new thread for each connection to send packages to said connection
          */
         for (;;) {
-			rtp.accept();
+        	// TODO: accept
+			Connection c = rtp.accept();
 			
 //			System.out.println("Handling client at " + clientAddress + " on Port " + clientPort);
 			
 //			while ((recvMsgSize = in.read(byteBuffer)) != -1) {
-			if ((recvMsgSize = rtp.read(byteBuffer, 500)) != -1) {
+			while ((recvMsgSize = rtp.receive(byteBuffer, 500, c)) != -1) {
 				// "query" here
 				String[] query = separate(new String(byteBuffer));
 				String queryId = query[0];
 				String attributes = query[1];
+				
+				System.out.println("\n-------READING MESSAGE AT SERVER------------");
+				System.out.println("byteBuffer: " + new String(byteBuffer));
+				System.out.println("query: " + query);
+				System.out.println("queryId: " + queryId);
+				System.out.println("attributes: " + attributes);
+				System.out.println("-------END: READING MESSAGE AT SERVER-------\n");
 				
 				if (!db.containsKey(queryId)) {
 					throw new Exception("GTID does not exist in the database");
@@ -76,13 +84,13 @@ public class dbengineRTP {
 				byte[] resultBuffer = resultString.getBytes();
 				
 				// TODO: IMPLEMENT SENDING DATA TO THE CLIENT
-				rtp.write(resultBuffer);
+				rtp.send(resultBuffer, c);
 			}
 			
-			// ah: we don't need to close this time, because close is called by the client
-//			clntSock.close(); // Close the socket. We are done with this client!
-			
+			// ah: can't close the client socket from the server
+	//			clntSock.close(); // Close the socket. We are done with this client!
 		}
+
 		/* NOT REACHED */
 	}
 	

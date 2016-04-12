@@ -44,16 +44,16 @@ public class dbclientRTP {
 		InetAddress serverIP = InetAddress.getByName(server);
 		int windowSizeInBytes = 1;
 		
+		Connection c = null;
 		try {
-			rtp.connect(serverIP, servPort, windowSizeInBytes);
+			c = rtp.connect(serverIP, servPort, windowSizeInBytes);
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
 		
-		try {
-
+		try {			
 			// TODO: send byte buffer
-			rtp.write(byteBuffer);
+			rtp.send(byteBuffer, c);
 			
 			// get query results
 			boolean receivedMessage = false;
@@ -65,7 +65,7 @@ public class dbclientRTP {
 	//				throw new SocketException("Connection closed prematurely");
 	//			}
 				
-				if ((bytesRcvd = rtp.read(byteBuffer, 500)) > 0) {
+				if ((bytesRcvd = rtp.receive(byteBuffer, 500, c)) > 0) {
 					totalBytesRecvd += bytesRcvd;
 					receivedMessage = true;
 				}
@@ -74,7 +74,7 @@ public class dbclientRTP {
 			System.out.println("From Server: " + new String(byteBuffer));
 			
 			// TODO: close the connection
-			rtp.close(); // Close the socket and its streams
+			rtp.close(c, SocketToCloseIs.ClientSocket); // Close the socket and its streams
 			
 		} catch (Exception e) {
 			e.printStackTrace();
