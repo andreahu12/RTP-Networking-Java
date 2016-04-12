@@ -11,8 +11,8 @@ public class dbengineRTP {
 
 	/**
 	 * Thread 1: socket(), bind(), listen(), start thread 2, accept()
-     * Thread 2: receive()
-     * Thread 3-n: send()
+     * Thread 2: receive
+     * Thread 3-n: connection thread that does everything else
 	 * @param args
 	 * @throws Exception
      */

@@ -5,6 +5,7 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Uses UDP sockets to behave like TCP
@@ -23,6 +24,10 @@ public class rtp {
 //	private static int TIMEOUT = 2000; // arbitrary milliseconds
 	private static final int MAX_SEGMENT_SIZE = 972; 
 	private static DatagramSocket socket;
+
+
+    private ConcurrentLinkedQueue<Packet> synQ = new ConcurrentLinkedQueue<Packet>();
+
 
 	/*
 	 * CLASS METHODS BELOW
@@ -46,7 +51,6 @@ public class rtp {
 	 * Makes a connection object on client side. <br>
 	 * Assigns window size to the connection.
      *
-     * TODO: Should ideally return a connection object so that the user can say Connection x = rtp.connect(...)
 	 * @param windowSizeInBytes
 	 * @return whether or not the connection attempt succeeded
 	 * @throws Exception 
@@ -200,6 +204,12 @@ public class rtp {
 	 * Accepts connect() requests from a client at the server. <br>
 	 * Creates a connection object on server-side. <br>
 	 * Only to be called at the server.
+     *
+     *
+     * TODO: Should ideally return a connection object or addr so that the user can say Connection x = rtp.connect(...)
+     * This is because the server wouldn't be able to identify a connected client otherwise
+     *
+     * Block until something is in the SYN queue and returns connection or addr
 	 */
 	public static void accept() {
 		DatagramPacket receivePacket = new DatagramPacket(
@@ -252,6 +262,7 @@ public class rtp {
 	
 	/**
 	 * USER NOTE: ONLY CLIENTS SHOULD CALL THIS
+     * TODO:make servers able to call this
 	 * Closes the RTP connection using the algorithm TCP uses. <br>
 	 * Only closes the client socket. <br>
 	 * Leaves the server socket open since server socket needs to stay open. <br>
@@ -358,7 +369,7 @@ public class rtp {
      * Sends a message. Finishes when the ack is received.
 	 * @param data
 	 */
-	public static void write(byte[] data) {
+	public static void send(byte[] data, Connection connection) {
 		// TODO: set the destination of each datagram packet
 		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data);
 		Connection c = getConnection(socket.getLocalAddress().getHostAddress(), 
@@ -464,7 +475,7 @@ public class rtp {
 	 * @param numBytesRequested
 	 * @return number of bytes read
 	 */
-	public static int read(byte[] writeToBuffer, int numBytesRequested) {
+	public static int receive(byte[] writeToBuffer, int numBytesRequested, Connection connection) {
 		System.out.println("rtp.read socket: " + socket);
 		Connection c = getConnection(socket.getLocalAddress().getHostAddress(), 
 				String.valueOf(socket.getLocalPort()));

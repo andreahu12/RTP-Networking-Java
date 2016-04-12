@@ -10,7 +10,7 @@ import java.nio.charset.Charset;
 public class dbclientRTP {
 
     /**
-     * Thread 1: socket(), connect(), start thread 2, send()
+     * Thread 1: socket(), start thread 2, connect(), send()
      * Thread 2: Receive()
      * @param args
      * @throws IOException

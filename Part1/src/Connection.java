@@ -17,9 +17,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class Connection {
 
 	private static final int MAX_RTP_PACKET_SIZE = 1000;
-	
-	private ConcurrentLinkedQueue<Packet> acks = new ConcurrentLinkedQueue<Packet>(); 
-	
+
 	private HashSet<Integer> receivedSequenceNumbers; // for checking for duplicates via seq num
 	private HashSet<Integer> receivedAckNumbers; // for checking for duplicates via ack num
 	
