@@ -6,6 +6,7 @@ import java.util.Queue;
 import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Uses UDP sockets to behave like TCP
@@ -17,8 +18,8 @@ public class rtp {
 	// TODO: implement reading at the server
 	// TODO: implement sending acknowledgements
 	
-	// string key is client IP + client port
-	private static ConcurrentHashMap<String, Connection> clientPortToConnection
+	// string key is IP + port
+	private static ConcurrentHashMap<String, Connection> connections
 		= new ConcurrentHashMap<String, Connection>(); // for demultiplexing
 	private static int RECEIVE_PACKET_BUFFER_SIZE = 2048; // arbitrary value
 //	private static int TIMEOUT = 2000; // arbitrary milliseconds
@@ -26,7 +27,7 @@ public class rtp {
 	private static DatagramSocket socket;
 
 
-    private static ConcurrentLinkedQueue<DatagramPacket> synQ = new ConcurrentLinkedQueue<DatagramPacket>();
+    private static LinkedBlockingQueue<DatagramPacket> synQ = new LinkedBlockingQueue<DatagramPacket>();
 
 
 	/*
@@ -72,15 +73,19 @@ public class rtp {
 		int clientPort = socket.getLocalPort();
 
         //check if connection established
-		if (getConnection(clientAddressStr, clientPortStr) != null) {
-			System.out.println("Connection has already been established");
+        System.out.println("rtp.connect: checking if connection has already been established");
+		if (getConnection(serverIP.getHostAddress(), String.valueOf(serverPort)) != null) {
+			System.out.println("rtp.connect: Connection has already been established");
 			return getConnection(clientAddressStr, clientPortStr);
 		}
 
 		try {
+            (new MultiplexData()).start();
+
 			Connection c = createConnection(socket.getLocalAddress(), socket.getLocalPort(), serverIP, serverPort);
 			c.setWindowSize(windowSizeInBytes);
-			System.out.println("1. Created a connection object in hashmap");
+
+			System.out.println("rtp.connect: 1. Created a connection object in hashmap");
 			
 			/*
 			 * implementation of 3 way handshake
@@ -91,58 +96,56 @@ public class rtp {
 			 */
 			// Create SYNbit = 1, Seq = x packet
 			DatagramPacket SynPacketDP = makeSynPacket(serverIP, serverPort);
-			System.out.println("2. Made SYN packet");
+			System.out.println("rtp.connect: 2. Made SYN packet");
 			socket.send(SynPacketDP);
-			System.out.println("3. Sent SYN packet");
+			System.out.println("rtp.connect: 3. Sent SYN packet");
 			
-			DatagramPacket receivePacket = new DatagramPacket(
-					new byte[RECEIVE_PACKET_BUFFER_SIZE],
-					RECEIVE_PACKET_BUFFER_SIZE);
-						
-			
-			System.out.println("4. Waiting to receive SYN ACK...");
-			// TODO: LOCK THIS METHOD CALL
-			socket.receive(receivePacket);
-			System.out.println("4.1 Received a datagram packet: " + receivePacket);
+//			DatagramPacket receivePacket = new DatagramPacket(
+//					new byte[RECEIVE_PACKET_BUFFER_SIZE],
+//					RECEIVE_PACKET_BUFFER_SIZE);
+//
+            System.out.println("rtp.connect: 4. Waiting to receive SYN ACK...");
+			DatagramPacket receivePacket = c.getAckBuffer().take(); //blocks
+			System.out.println("rtp.connect: 4.1 Received a datagram packet: " + receivePacket);
 			
 			boolean validPacketReceived = false;
 			
 			while (!validPacketReceived) {
 				Packet receivePacketRTP = rtpBytesToPacket(receivePacket.getData());
-				if ((receivePacket != null) && (receivePacketRTP.getACK()) && (receivePacketRTP.getSYN())) {
-					System.out.println("5. Received a SYN ACK packet");
+				if (receivePacket != null && receivePacketRTP.getSYN()) {
+					System.out.println("rtp.connect: 5. Received a SYN ACK packet");
 					/*
 					 * HANDSHAKE 3: CLIENT --> SERVER
 					 */
 					// Create ACKbit = 1, ACKnum = y+1 packet
 					DatagramPacket ack = makeHandshakeAckPacket(clientAddress, clientPort, serverIP, serverPort);
-					System.out.println("6. Made ACK");
+					System.out.println("rtp.connect: 6. Made ACK");
 					socket.send(ack);
-					System.out.println("7. Sent ACK");
+					System.out.println("rtp.connect: 7. Sent ACK");
 					validPacketReceived = true;
 				} else {
-					System.out.println("4.2 waiting to receive another packet");
-					socket.receive(receivePacket);
-					System.out.println("4.3  Received: " + receivePacket);
+					System.out.println("rtp.connect: 4.2 waiting to receive another packet");
+                    receivePacket = c.getAckBuffer().take();
+					System.out.println("rtp.connect: 4.3  Received: " + receivePacket);
 				}
 			}
 			
 			System.out.println("rtp.connect: returning " + c);
-			System.out.println("----------------- end Connect --------------------\n");
+			System.out.println("rtp.connect: ----------------- end Connect --------------------\n");
 			return c;
 			
 		} catch (Exception e) {
-			System.out.println("<-----------rtp.Connect Failed-------------->");
+			System.out.println("rtp.connect: <-----------rtp.Connect Failed-------------->");
 			e.printStackTrace();
 			
 			// remove the failed connection if necessary
-			String address = socket.getLocalAddress().getHostAddress();
-			String port = String.valueOf(socket.getLocalPort());
-			if (clientPortToConnection.containsKey(generateKey(address, port))) {
-				clientPortToConnection.remove(address, port);
+			String address = serverIP.getHostAddress();
+			String port = String.valueOf(serverPort);
+			if (connections.containsKey(generateKey(address, port))) {
+				connections.remove(address, port);
 			}
 			System.out.println("rtp.connect: returning " + null);
-			System.out.println("----------------- end Connect --------------------\n");
+			System.out.println("rtp.connect: ----------------- end Connect --------------------\n");
 			return null;
 		}
 	}
@@ -212,49 +215,38 @@ public class rtp {
      * This is because the server wouldn't be able to identify a connected client otherwise
      *
      * Block until something is in the SYN queue and returns connection or addr
+     *
+     * @return The connection with the client
 	 */
 	public static Connection accept() {
-		DatagramPacket receivePacket = new DatagramPacket(
-				new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
-		
-			System.out.println("\nIn rtp.accept....");
-			try {
-				// TODO: MAKE THIS THREAD SAFE
-				socket.receive(receivePacket);
-				System.out.println("rtp.accept: socket.receive finished calling");
-				
-				if (receivePacket != null) {
-					System.out.println("rtp.accept: received a not null packet");
-					Packet rtpReceivePacket = rtpBytesToPacket(receivePacket.getData());
-					InetAddress clientAddress = receivePacket.getAddress();
-					int clientPort = receivePacket.getPort();
-					
-					printRtpPacketFlags(rtpReceivePacket);
-					
-					if (rtpReceivePacket.getSYN()) {
-						System.out.println("rtp.accept: received a SYN packet");
-						// got the syn packet from the first handshake
-						// send the syn ack packet for the second handshake
-						DatagramPacket SynAckPacket = makeSynAckPacket(clientAddress, clientPort);
-						Connection c = createConnection(clientAddress, clientPort,
-								socket.getLocalAddress(), socket.getLocalPort());
-						socket.send(SynAckPacket);
-					} 
-					
-					if (rtpReceivePacket.getACK()) {
-						System.out.println("rtp.accept: received an ACK packet");
-						// check for ack packet in 3rd handshake
-						// received ack? make a connection
-						Connection c = getConnection(clientAddress.getHostAddress(), 
-								String.valueOf(clientPort));
-						return c;
-					}
-				}
-			} catch (Exception e) {
-				e.printStackTrace();
-			}
-			return null;
-//		}
+        (new MultiplexData()).start();
+        try { //make connection, send synack, listen for ack, return ocnnection
+            DatagramPacket synPacket = synQ.take(); //will block until there is something to pop
+    //        DatagramPacket receivePacket = new DatagramPacket(
+    //                new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
+
+            Packet rtpReceivePacket = rtpBytesToPacket(synPacket.getData());
+            InetAddress clientAddress = synPacket.getAddress();
+            int clientPort = synPacket.getPort();
+
+            //printRtpPacketFlags(rtpReceivePacket);
+
+            DatagramPacket SynAckPacket = makeSynAckPacket(clientAddress, clientPort);
+            Connection c = createConnection(socket.getLocalAddress(), socket.getLocalPort(), clientAddress, clientPort);
+
+            socket.send(SynAckPacket);
+            c.getAckBuffer().take(); //blocks until it returns something
+            System.out.println("rtp.accept: received an ACK packet, printing list of connections");
+            int j = 0;
+            for(Connection i: connections.values()){
+                System.out.println("Connection "+j+": "+i.getRemoteAddress()+":"+i.getRemotePort());
+                j++;
+            }
+            return c;
+        } catch (Exception e1) {
+            e1.printStackTrace();
+        }
+        return null;
 	}
 
 	
@@ -274,15 +266,16 @@ public class rtp {
 		
 		InetAddress localAddress = socket.getLocalAddress();
 		int localPort = socket.getLocalPort();
-		
-		InetAddress clientAddress = c.getClientAddress();
-		int clientPort = c.getClientPort();
+		//TODO:I only changed the getClientaddr/port... to getLocal to compile and server to remote
+
+		InetAddress clientAddress = c.getLocalAddress();
+		int clientPort = c.getLocalPort();
 		
 		boolean closeClientSocket = (localAddress.equals(clientAddress)) && (localPort == clientPort);
 		
 		// if we want to close the client socket, we need to send a packet to the server
-		InetAddress destinationAddress = closeClientSocket ? c.getServerAddress() : c.getClientAddress();
-		int destinationPort = closeClientSocket ? c.getServerPort() : c.getClientPort();
+		InetAddress destinationAddress = closeClientSocket ? c.getRemoteAddress() : c.getLocalAddress();
+		int destinationPort = closeClientSocket ? c.getRemotePort() : c.getLocalPort();
 			
 		// implemented TCP close algorithm
 		/*
@@ -346,8 +339,8 @@ public class rtp {
 	 * Makes a FIN acknowledgement packet for closing. <br>
 	 * Used by both the client and the server. <br>
 	 * NOTE TO USER: make sure to set the packet destination IP + Port<br>
-	 * @param destIP
-	 * @param destPort
+	 * @param packetToAck
+	 * @param toClientFromServer
 	 * @return a FIN acknowledgement packet
 	 */
 	private static DatagramPacket makeFinAckPacket(Packet packetToAck, boolean toClientFromServer) {
@@ -380,8 +373,8 @@ public class rtp {
 		while (packetsToSend.size() > 0) {
 			if (canSendPacket) {
 				DatagramPacket toSend = packetsToSend.peek();
-				toSend.setAddress(c.getServerAddress());
-				toSend.setPort(c.getServerPort());
+				toSend.setAddress(c.getRemoteAddress());
+				toSend.setPort(c.getRemotePort());
 				
 				try {
 					socket.send(toSend);
@@ -512,7 +505,7 @@ public class rtp {
 		Packet ack = new Packet(false, true, false, newSeqNum, newAckNum, null);
 		ack.setRemainingBufferSize(c.getRemainingReceiveBufferSize());
 		byte[] ackBytes = ack.packetize();
-		DatagramPacket dpAck = new DatagramPacket(ackBytes, ackBytes.length, c.getClientAddress(), c.getClientPort());
+		DatagramPacket dpAck = new DatagramPacket(ackBytes, ackBytes.length, c.getLocalAddress(), c.getLocalPort());
 		socket.send(dpAck);
 	}
 	
@@ -649,16 +642,17 @@ public class rtp {
 	
 	/**
 	 * Retrieves a connection from the hash map.
-	 * @param clientAddress
-	 * @param clientPort
+	 * @param remoteAddress
+	 * @param remotePort
 	 * @return Connection or null if it has not been created
 	 */
-	private static Connection getConnection(String clientAddress, String clientPort) {
-		String key = generateKey(clientAddress, clientPort);
-		if (clientPortToConnection.containsKey(key)) {
-			return clientPortToConnection.get(key);
+	private static Connection getConnection(String remoteAddress, String remotePort) {
+		String key = generateKey(remoteAddress, remotePort);
+		if (connections.containsKey(key)) {
+			return connections.get(key);
 		} else {
-			System.out.println("rtp.getConnection: cannot retrieve connection");
+			System.out.println("rtp.getConnection: cannot retrieve connection to "+
+                    remoteAddress + ": " + remotePort);
 			return null;
 		}
 	}
@@ -666,13 +660,13 @@ public class rtp {
 	/**
 	 * Returns true if the connection was deleted. 
 	 * Returns false if there was no connection to delete.
-	 * @param clientAddress
-	 * @param clientPort
+	 * @param remoteAddress
+	 * @param remotePort
 	 * @return whether or not the desired connection was available to delete
 	 */
-	private static boolean deleteConnection(String clientAddress, String clientPort) {
-		String key = generateKey(clientAddress, clientPort);
-		return clientPortToConnection.remove(key) != null;
+	private static boolean deleteConnection(String remoteAddress, String remotePort) {
+		String key = generateKey(remoteAddress, remotePort);
+		return connections.remove(key) != null;
 		
 	}
 	
@@ -680,28 +674,93 @@ public class rtp {
 	 * Creates a connection object and adds it to the hashmap.
 	 * Does not actually establish a TCP connection. This is just for
 	 * rtp representation for easy access later on.
-	 * @param clientSocket
-	 * @param serverSocket
+	 * @param localIP
+	 * @param localPort
+     * @param remoteIP
+     * @param remotePort
 	 * @return Connection representing the two sockets in hashmap
 	 * @throws Exception for unconnected or null sockets
 	 */
-	private static Connection createConnection(InetAddress clientIP, int clientPort, 
-			InetAddress destIP, int destPort) throws Exception {
-		if (clientIP== null) {
-			throw new Exception("rtp.createConncetion: clientIP is null");
-		} else if (clientPort == -1) {
-			throw new Exception("rtp.createConnection: clientSocket is not connected");
-		} else if (destIP == null) {
-			throw new Exception("rtp.createConnection: invalid IP");
-		} else if (destPort < 0) {
-			throw new Exception("rtp.createConnection: invalid port");
+	private static Connection createConnection(InetAddress localIP, int localPort,
+			InetAddress remoteIP, int remotePort) throws Exception {
+		if (localIP== null) {
+			throw new Exception("rtp.createConncetion: local ip is null");
+		} else if (localPort == -1) {
+			throw new Exception("rtp.createConnection: local socket is not connected");
+		} else if (remoteIP == null) {
+			throw new Exception("rtp.createConnection: invalid remote IP");
+		} else if (remotePort < 0) {
+			throw new Exception("rtp.createConnection: invalid remote port");
 		}
-		
-		
-		Connection c = new Connection(clientIP, clientPort, destIP, destPort);
-		String key = generateKey(clientIP.getHostAddress(), String.valueOf(clientPort));
-		clientPortToConnection.put(key, c);
-		return c;	
+
+
+		Connection c = new Connection(localIP, localPort, remoteIP, remotePort);
+		String key = generateKey(remoteIP.getHostAddress(), String.valueOf(remotePort));
+		connections.put(key, c);
+        System.out.println("rtp.createconnection: Created connection with "+
+                remoteIP.getHostAddress() + ": " + String.valueOf(remotePort));
+		return c;
 	}
-	
+
+    /**
+     * The thread for receiving data. starts when accept accept starts
+     * Do not implement until we have one working first
+     */
+    private static class MultiplexData extends Thread{
+        /**
+         * Constructor if we need it
+         */
+//        MultiplexData(){
+//        }
+
+        /**
+         * called by start()
+         * Call this in the first line of both connect and accept
+         *
+         * calls udp's recieve in a loop and puts it in the correct buffer
+         * 1) look at SYN bit, if 1 throw in syn buffer
+         * 2) look at port and ip, if connection exists, throw in connection's receive buffer
+         * 3) if no connection exists, ignore
+         */
+        @Override
+        public void run(){
+            while(true){
+                DatagramPacket receivePacket = new DatagramPacket(
+                        new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
+
+                System.out.println("\nMultiplexData.run: Checking for packet...");
+                try {
+                    socket.receive(receivePacket);
+                    System.out.println("MultiplexData.run: socket.receive finished calling, got a packet");
+
+                    if (receivePacket != null) {
+                        System.out.println("MultiplexData.run: The packet is not null");
+                        Packet rtpReceivePacket = rtpBytesToPacket(receivePacket.getData());
+                        InetAddress remoteAddress = receivePacket.getAddress();
+                        int remotePort = receivePacket.getPort();
+                        printRtpPacketFlags(rtpReceivePacket);
+
+                        if (rtpReceivePacket.getACK()) { //if ack, put in corresponding ack buffer
+                            Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+                            if (c != null) {
+                                System.out.println("MultiplexData.run: received an ACK packet");
+                                c.getAckBuffer().put(receivePacket);
+                            }
+                        } else if (rtpReceivePacket.getSYN()) { //if syn put in syn buffer
+                            System.out.println("MultiplexData.run: Packet is a SYN packet");
+                            synQ.add(receivePacket);
+                        } else { //data to put in corresponding recieve buffer
+                            Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+                            if (c != null) {
+                                for (Byte b : receivePacket.getData())
+                                    c.getReceiveBuffer().put(b);
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
 }

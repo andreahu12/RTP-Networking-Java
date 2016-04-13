@@ -42,6 +42,7 @@ public class dbclientRTP {
 		// Create socket that is connected to server on specified port
 		// TODO: connect
 		InetAddress serverIP = InetAddress.getByName(server);
+        System.out.println("parsed server ip: "+serverIP);
 		int windowSizeInBytes = 1;
 		
 		Connection c = null;

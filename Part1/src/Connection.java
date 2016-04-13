@@ -1,11 +1,16 @@
 
+import org.omg.CORBA.DATA_CONVERSION;
+
+import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Connections represent RTP connections for easy variable access
@@ -21,16 +26,18 @@ public class Connection {
 	private HashSet<Integer> receivedSequenceNumbers; // for checking for duplicates via seq num
 	private HashSet<Integer> receivedAckNumbers; // for checking for duplicates via ack num
 	
-	private InetAddress serverAddress;
-	private int serverPort;
-	private InetAddress clientAddress; 
-	private int clientPort;
+	private InetAddress remoteAddress;
+	private int remotePort;
+	private InetAddress localAddress;
+	private int localPort;
 	
 	//flow control variables
 	private int MAX_WINDOW_SIZE; // of our recieve buffer
-	private ConcurrentLinkedQueue<Byte> sendBuffer;
+	private LinkedBlockingQueue<Byte> sendBuffer;
 	// remainingBufferSize = recieveBuffer max size - size(receiveBuffer)
-	private ConcurrentLinkedQueue<Byte> receiveBuffer; 
+	private LinkedBlockingQueue<Byte> receiveBuffer;
+    // remainingBufferSize = recieveBuffer max size - size(receiveBuffer)
+    private LinkedBlockingQueue<DatagramPacket> ackBuffer;
 	private int lastByteSent; // LastByteSent - LastByteAcked <= rwnd
 	private int lastByteAcked;
 	// rwnd is sent in the header and calculated in send
@@ -42,30 +49,31 @@ public class Connection {
 	/**
 	 * Creates a new Connection object. Does not instantiate the window size
 	 */
-	public Connection(InetAddress clientIP, int clientPort, InetAddress serverIP, int serverPort) {
+	public Connection(InetAddress localIP, int localPort, InetAddress remoteIP, int remotePort) {
 		
 		receivedSequenceNumbers = new HashSet<Integer>();
 		receivedAckNumbers = new HashSet<Integer>();
 		
-		serverAddress = serverIP;
-		clientAddress = clientIP;
-		this.serverPort = serverPort;
-		this.clientPort = clientPort;
+		remoteAddress = remoteIP;
+		localAddress = localIP;
+		this.remotePort = remotePort;
+		this.localPort= localPort;
 
-		sendBuffer = new ConcurrentLinkedQueue<Byte>();
-		receiveBuffer = new ConcurrentLinkedQueue<Byte>();		
+		sendBuffer = new LinkedBlockingQueue<Byte>();
+		receiveBuffer = new LinkedBlockingQueue<Byte>();
+        ackBuffer = new LinkedBlockingQueue<DatagramPacket>();
 	}
 	
 	/*
 	 * METHODS BELOW
 	 */
 	
-	public int getServerPort() {
-		return serverPort;
+	public int getRemotePort() {
+		return remotePort;
 	}
 	
-	public int getClientPort() {
-		return clientPort;
+	public int getLocalPort() {
+		return localPort;
 	}
 	
 	public int getMAX_WINDOW_SIZE() {
@@ -76,11 +84,15 @@ public class Connection {
 		MAX_WINDOW_SIZE = size * MAX_RTP_PACKET_SIZE;
 	}
 	
-	public Queue<Byte> getReceiveBuffer() {
+	public LinkedBlockingQueue<Byte> getReceiveBuffer() {
 		return receiveBuffer;
 	}
-	
-	/**
+
+    public LinkedBlockingQueue<DatagramPacket> getAckBuffer() {
+        return ackBuffer;
+    }
+
+    /**
 	 * Only adds non-duplicate ack payloads to the client buffer.
 	 * Does not acknowledge the packet.
 	 * Adds sequence number to hash map.
@@ -148,16 +160,16 @@ public class Connection {
 	 * For demultiplexing
 	 * @return server address containing IP # and Host #
 	 */
-	public InetAddress getServerAddress() {
-		return serverAddress;
+	public InetAddress getRemoteAddress() {
+		return remoteAddress;
 	}
 	
 	/**
 	 * For demultiplexing
 	 * @return client address containing IP # and Host #
 	 */
-	public InetAddress getClientAddress() {
-		return clientAddress;
+	public InetAddress getLocalAddress() {
+		return localAddress;
 	}
 	
 	public int getReceiveBufferSize() {
@@ -176,7 +188,7 @@ public class Connection {
 	 * receiveBuffer in a byte array. 
 	 * 
 	 * This is done on a new array each time so there should not be any legacy data.
-	 * @param numBytes
+	 * @param bytes
 	 * @return byte array of the entire result from server, or null if no result
 	 */
 
