@@ -17,7 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * Connections represent RTP connections for easy variable access
  * within the RTP class.
  * Holds connection information.
- * @author andreahu
+ * @author andreahu, jeffersonwang
  *
  */
 public class Connection {
@@ -117,7 +117,7 @@ public class Connection {
 //	}
 	
 	/**
-	 * Only adds non-duplicate sequence number payloads to the server buffer. 
+	 * Only adds non-duplicate sequence number payloads to the send buffer.
 	 * Does not acknowledge the packet.
 	 * Adds to the sequence number to hash map.
 	 */
@@ -157,7 +157,7 @@ public class Connection {
 	
 	/**
 	 * Use to get the value for an ACK header
-	 * @return number of bytes remaining in client buffer
+	 * @return number of bytes remaining in receive buffer
 	 */
 	public int getRemainingReceiveBufferSize() {
 		return MAX_WINDOW_SIZE * MAX_RTP_PACKET_SIZE - receiveBuffer.size();
@@ -165,7 +165,7 @@ public class Connection {
 	
 	/**
 	 * For demultiplexing
-	 * @return server address containing IP # and Host #
+	 * @return remote address containing IP # and Host #
 	 */
 	public InetAddress getRemoteAddress() {
 		return remoteAddress;
@@ -173,7 +173,7 @@ public class Connection {
 	
 	/**
 	 * For demultiplexing
-	 * @return client address containing IP # and Host #
+	 * @return local address containing IP # and Host #
 	 */
 	public InetAddress getLocalAddress() {
 		return localAddress;

@@ -6,6 +6,7 @@ import java.nio.charset.Charset;
 
 /**
  * An example of how to use RTP as a client to connect to a server
+ * @author andreahu, jeffersonwang
  */
 public class dbclientRTP {
 

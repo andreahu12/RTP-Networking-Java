@@ -4,6 +4,7 @@ import java.util.HashMap;
 
 /**
  * An example of how to use RTP as a server to connect to multiple clients
+ * @author jeffersonwang, andreahu
  */
 public class dbengineRTP {
 	private static final int BUFSIZE = 2048;//32; // SIZE OF THE RECEIVE BUFFER

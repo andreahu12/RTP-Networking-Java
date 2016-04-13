@@ -11,7 +11,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * Uses UDP sockets to behave like TCP
- * @author andreahu
+ * @author andreahu, jeffersonwang
  *
  */
 public class rtp {
@@ -113,7 +113,7 @@ public class rtp {
 			
 			while (!validPacketReceived) {
 				Packet receivePacketRTP = rtpBytesToPacket(receivePacket.getData());
-				if (receivePacket != null && receivePacketRTP.getSYN()) {
+				if (receivePacketRTP.getSYN()) {
 					System.out.println("rtp.connect: 5. Received a SYN ACK packet");
 					/*
 					 * HANDSHAKE 3: CLIENT --> SERVER
@@ -413,7 +413,7 @@ public class rtp {
 					}
 				} catch (Exception e) {
 					e.printStackTrace();
-				} finally {}
+				}
 			}
 		}
 	}
@@ -496,7 +496,6 @@ public class rtp {
 			writeToBuffer[i] = receiveRemainder.remove();
 		}
 
-        //TODO: get data from packets and send ack and store remainder in receiveRemainder
         while(remainingBytes>0){
             DatagramPacket packet = c.getReceiveBuffer().remove();
 
