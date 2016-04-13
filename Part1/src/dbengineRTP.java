@@ -13,7 +13,7 @@ public class dbengineRTP {
 	 * Thread 1: socket(), bind(), listen(), start thread 2, accept()
      * Thread 2: receive
      * Thread 3-n: connection thread that does everything else
-	 * @param args
+	 * @param args port of desired listening socket
 	 * @throws Exception
      */
 	public static void main(String[] args) throws Exception {
@@ -27,9 +27,6 @@ public class dbengineRTP {
 		int servPort = Integer.parseInt(args[0]);
 		// Create a server socket to accept client connection requests, socket bind and listen
 		rtp.listen(servPort);
-		
-		int recvMsgSize; // Size of received message
-		byte[] byteBuffer = new byte[BUFSIZE]; // Receive buffer
 
         // Start looking for packets in the receive buffers?
         (new ReceiveThread()).start();
@@ -37,17 +34,12 @@ public class dbengineRTP {
          * Listens for incoming connections by checking the SYN buffer for a package
          * Creates a new thread for each connection to send packages to said connection
          */
-        for (;;) {
-        	// TODO: accept
+        while(true) {
 			Connection c = rtp.accept();
-
-
-			
+            (new ConnectionThread(c)).start();
 			// ah: can't close the client socket from the server
-	//			clntSock.close(); // Close the socket. We are done with this client!
+	        //clntSock.close(); // Close the socket. We are done with this client!
 		}
-
-		/* NOT REACHED */
 	}
 	
 	/*
@@ -56,8 +48,8 @@ public class dbengineRTP {
 	
 	/**
 	 * Queries a row for the value for an attribute.
-	 * @param row
-	 * @param attribute
+	 * @param row Row specific to a single student
+	 * @param attribute desired attrivute of that student
 	 * @return value for that attribute
 	 * @throws Exception 
 	 */
@@ -131,10 +123,8 @@ public class dbengineRTP {
 	}
 	
 	/**
-	 * Separates gtid from attributes to query.
-	 * input is in the format:
-	 * gtid:attribute ... attribute
-	 * @param input
+	 * Separates gtid from attributes to query
+	 * @param input String in format gtid:attribute ... attribute
 	 * @return an array containing the gtid at index 0 and 
 	 * a string of attributes separated by spaces at index 1
 	 */
@@ -167,11 +157,13 @@ public class dbengineRTP {
      * The thread for any specific connection. starts when accept accepts a connection
      * Do not implement until we have single thread working first
      */
-    private class ConnectionThread extends Thread{
+    private static class ConnectionThread extends Thread{
+        Connection connection;
         /**
          * Constructor if we need it
          */
-        ConnectionThread(){
+        ConnectionThread(Connection c){
+            connection = c;
         }
 
         /**
@@ -179,6 +171,9 @@ public class dbengineRTP {
          */
         @Override
         public void run(){ /*
+
+            int recvMsgSize; // Size of received message
+            byte[] byteBuffer = new byte[BUFSIZE]; // Receive buffer
 			System.out.println("Handling client at " + clientAddress + " on Port " + clientPort);
 
 			while ((recvMsgSize = rtp.receive(byteBuffer, 500, c)) != -1) {

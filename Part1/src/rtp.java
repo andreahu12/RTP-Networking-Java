@@ -1,11 +1,12 @@
-import java.net.*;
+import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+import java.net.SocketException;
 import java.nio.ByteBuffer;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.io.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -37,8 +38,8 @@ public class rtp {
 	/**
 	 * Makes a server socket for the application that the clients will connect to. <br>
 	 * Only call this in the server upon startup.
-	 * @param port
-	 * @return
+	 * @param port the port to listen on
+	 * @return the bound socket
 	 * @throws SocketException
 	 */
 	public static DatagramSocket listen(int port) throws SocketException {
@@ -118,7 +119,7 @@ public class rtp {
 					 * HANDSHAKE 3: CLIENT --> SERVER
 					 */
 					// Create ACKbit = 1, ACKnum = y+1 packet
-					DatagramPacket ack = makeHandshakeAckPacket(clientAddress, clientPort, serverIP, serverPort);
+					DatagramPacket ack = makeHandshakeAckPacket(serverIP, serverPort);
 					System.out.println("rtp.connect: 6. Made ACK");
 					socket.send(ack);
 					System.out.println("rtp.connect: 7. Sent ACK");
@@ -152,19 +153,16 @@ public class rtp {
 	
 	/**
 	 * Creates an ACK packet for the 3rd handshake
-	 * @param clientAddress
-	 * @param clientPort
-	 * @param serverAddress
-	 * @param serverPort
+	 * @param serverAddress ip of server
+	 * @param serverPort listening port of server
 	 * @return handshake ack packet
 	 */
-	private static DatagramPacket makeHandshakeAckPacket(int clientAddress, int clientPort,
+	private static DatagramPacket makeHandshakeAckPacket(
 			InetAddress serverAddress, int serverPort) {
 		Packet packet3 = new Packet(false, true, false, 1, 1, null);
 		byte[] packet3bytes = packet3.packetize();
-		DatagramPacket p3 = new DatagramPacket(packet3bytes, packet3bytes.length, 
-				serverAddress, serverPort);
-		return p3;
+        return new DatagramPacket(packet3bytes, packet3bytes.length,
+                serverAddress, serverPort);
 	}
 	
 	/**
@@ -176,9 +174,8 @@ public class rtp {
 	private static DatagramPacket makeSynAckPacket(InetAddress clientIP, int clientPort) {
 		Packet packet2 = new Packet(false, true, true, 0, 1, null);
 		byte[] packet2bytes = packet2.packetize();
-		
-		DatagramPacket p2 = new DatagramPacket(packet2bytes, packet2bytes.length, clientIP, clientPort);
-		return p2;
+
+        return new DatagramPacket(packet2bytes, packet2bytes.length, clientIP, clientPort);
 	}
 	
 	/**
@@ -415,7 +412,7 @@ public class rtp {
 	
 	/**
 	 * Converts a byte array into a Queue of Datagram Packets.
-	 * @param data
+	 * @param data byte stream to convert
 	 * @return Queue of DatagramPackets
 	 */
 	private static Queue<DatagramPacket> convertStreamToPacketQueue(byte[] data) {
@@ -461,11 +458,8 @@ public class rtp {
 	/**
 	 * NOTE: THIS ONLY WORKS FOR THE CLIENT SIDE
 	 * TODO: RETRIEVE THE CORRECT CONNECTION AT THE SERVER SIDE TOO
-	 * Reads a specified number of bytes (or less depending on the buffer size)
-	 * and write them to the byte buffer provided.
+	 * Reads a specified number of bytes and return them
      *
-     * accepts a connection and adds it to the corresponding buffer(either the syn buffer or the correct connection's)
-	 * @param writeToBuffer
 	 * @param numBytesRequested
 	 * @return number of bytes read
 	 */
@@ -495,8 +489,8 @@ public class rtp {
 
 	/**
 	 * Creates and sends an ack using data from the packet passed in.
-	 * @param p
-	 * @param c
+	 * @param p packet with the data
+	 * @param c connection
 	 * @throws IOException
 	 */
 	private static void sendAck(Packet p, Connection c) throws IOException {
