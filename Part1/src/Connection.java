@@ -178,11 +178,7 @@ public class Connection {
 	public InetAddress getLocalAddress() {
 		return localAddress;
 	}
-	
-	public int getReceiveBufferSize() {
-		return receiveBuffer.size();
-	}
-	
+
 	public int getSendBufferSize() {
 		return sendBuffer.size();
 	}

@@ -70,8 +70,8 @@ public class rtp {
 		String clientPortStr = String.valueOf(socket.getLocalPort());
 
         //get client addresses as ints
-		int clientAddress = ByteBuffer.wrap(socket.getLocalAddress().getAddress()).getInt();
-		int clientPort = socket.getLocalPort();
+//		int clientAddress = ByteBuffer.wrap(socket.getLocalAddress().getAddress()).getInt();
+//		int clientPort = socket.getLocalPort();
 
         //check if connection established
         System.out.println("rtp.connect: checking if connection has already been established");
@@ -111,7 +111,7 @@ public class rtp {
 			
 			boolean validPacketReceived = false;
 			
-			while (!validPacketReceived) {
+			while (!validPacketReceived) { //check if syn packet
 				Packet receivePacketRTP = rtpBytesToPacket(receivePacket.getData());
 				if (receivePacketRTP.getSYN()) {
 					System.out.println("rtp.connect: 5. Received a SYN ACK packet");
@@ -221,6 +221,7 @@ public class rtp {
             multiplexRunning = true;
         }
         try { //make connection, send synack, listen for ack, return connection
+            //TODO:take blocks forever, think about making it timeout
             DatagramPacket synPacket = synQ.take(); //will block until there is something to pop
     //        DatagramPacket receivePacket = new DatagramPacket(
     //                new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
@@ -481,18 +482,18 @@ public class rtp {
 			return null;
 		}
 
-		int numBytesReturned = Math.min(numBytesRequested, c.getReceiveBufferSize());
+		//int numBytesReturned = Math.min(numBytesRequested, c.getReceiveBuffer().size());
 
-		if (numBytesReturned == 0) {
+		if (numBytesRequested == 0) {
 			System.out.println("rtp.receive: no bytes to read");
 			return null;
 		}
 
-        Byte[] writeToBuffer = new Byte[numBytesReturned];
+        Byte[] writeToBuffer = new Byte[numBytesRequested];
         Queue<Byte> receiveRemainder = c.getReceiveRemainder();
         int remainingBytes = numBytesRequested - receiveRemainder.size();
         //pull off either num bytes returned or the entire receive remaneder buffer depending on which is full
-		for (int i = 0; i < (numBytesReturned<receiveRemainder.size()?numBytesRequested:receiveRemainder.size()); i++) {
+		for (int i = 0; i < (numBytesRequested<receiveRemainder.size()?numBytesRequested:receiveRemainder.size()); i++) {
 			writeToBuffer[i] = receiveRemainder.remove();
 		}
 
