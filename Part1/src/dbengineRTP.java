@@ -171,58 +171,58 @@ public class dbengineRTP {
          */
         @Override
         public void run(){
-
-            int recvMsgSize; // Size of received message
-            byte[] byteBuffer = new byte[BUFSIZE]; // Receive buffer
-			System.out.println("Handling client at " + connection.getRemoteAddress() +
-                    " on Port " + connection.getRemotePort());
-
-			while ((recvMsgSize = rtp.receive(byteBuffer, 500, connection)) != -1) {
-				// "query" here
-				String[] query = separate(new String(byteBuffer));
-				String queryId = query[0];
-				String attributes = query[1];
-
-				System.out.println("\n-------READING MESSAGE AT SERVER------------");
-				System.out.println("byteBuffer: " + new String(byteBuffer));
-				System.out.println("query: " + query);
-				System.out.println("queryId: " + queryId);
-				System.out.println("attributes: " + attributes);
-				System.out.println("-------END: READING MESSAGE AT SERVER-------\n");
-
-				if (!db.containsKey(queryId)) {
-					System.out.println("GTID does not exist in the database");
-				}
-
-				String[] row = db.get(queryId);
-
-				String[] attributeList = getAttributeList(attributes);
-
-				StringBuilder resultBuilder = new StringBuilder();
-
-				boolean isFirstAttribute = true;
-
-				int numAttributes = Integer.valueOf(attributeList[0]);
-				for (int i = 1; i <= numAttributes; i++) {
-                    try {
-                        String queryResult = getValue(row, attributeList[i]);
-                        if (isFirstAttribute) {
-                            resultBuilder.append(attributeList[i] + ": " + queryResult);
-                            isFirstAttribute = false;
-                        } else {
-                            resultBuilder.append(", " + attributeList[i] + ": " + queryResult);
-                        }
-                    } catch (Exception e){
-                        e.printStackTrace();
-                    }
-				}
-
-				String resultString = resultBuilder.toString();
-				byte[] resultBuffer = resultString.getBytes();
-
-				// TODO: IMPLEMENT SENDING DATA TO THE CLIENT
-				rtp.send(resultBuffer, connection);
-			}
+//
+//            int recvMsgSize; // Size of received message
+//            byte[] byteBuffer = new byte[BUFSIZE]; // Receive buffer
+//			System.out.println("Handling client at " + connection.getRemoteAddress() +
+//                    " on Port " + connection.getRemotePort());
+//
+//			while ((recvMsgSize = rtp.receive(byteBuffer, 500, connection)) != -1) {
+//				// "query" here
+//				String[] query = separate(new String(byteBuffer));
+//				String queryId = query[0];
+//				String attributes = query[1];
+//
+//				System.out.println("\n-------READING MESSAGE AT SERVER------------");
+//				System.out.println("byteBuffer: " + new String(byteBuffer));
+//				System.out.println("query: " + query);
+//				System.out.println("queryId: " + queryId);
+//				System.out.println("attributes: " + attributes);
+//				System.out.println("-------END: READING MESSAGE AT SERVER-------\n");
+//
+//				if (!db.containsKey(queryId)) {
+//					System.out.println("GTID does not exist in the database");
+//				}
+//
+//				String[] row = db.get(queryId);
+//
+//				String[] attributeList = getAttributeList(attributes);
+//
+//				StringBuilder resultBuilder = new StringBuilder();
+//
+//				boolean isFirstAttribute = true;
+//
+//				int numAttributes = Integer.valueOf(attributeList[0]);
+//				for (int i = 1; i <= numAttributes; i++) {
+//                    try {
+//                        String queryResult = getValue(row, attributeList[i]);
+//                        if (isFirstAttribute) {
+//                            resultBuilder.append(attributeList[i] + ": " + queryResult);
+//                            isFirstAttribute = false;
+//                        } else {
+//                            resultBuilder.append(", " + attributeList[i] + ": " + queryResult);
+//                        }
+//                    } catch (Exception e){
+//                        e.printStackTrace();
+//                    }
+//				}
+//
+//				String resultString = resultBuilder.toString();
+//				byte[] resultBuffer = resultString.getBytes();
+//
+//				// TODO: IMPLEMENT SENDING DATA TO THE CLIENT
+//				rtp.send(resultBuffer, connection);
+//			}
         }
     }
 

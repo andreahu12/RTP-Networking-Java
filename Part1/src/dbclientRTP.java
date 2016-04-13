@@ -40,7 +40,6 @@ public class dbclientRTP {
 		byte[] byteBuffer = query.getBytes(Charset.forName("UTF-8"));
 		
 		// Create socket that is connected to server on specified port
-		// TODO: connect
 		InetAddress serverIP = InetAddress.getByName(server);
         System.out.println("parsed server ip: "+serverIP);
 		int windowSizeInBytes = 1;
@@ -52,34 +51,34 @@ public class dbclientRTP {
 			e1.printStackTrace();
 		}
 		
-		try {			
-			// TODO: send byte buffer
-			rtp.send(byteBuffer, c);
-			
-			// get query results
-			boolean receivedMessage = false;
-			int totalBytesRecvd = 0;
-			int bytesRcvd;
-			while (!receivedMessage) {
-				byteBuffer = new byte[500];
-	//			if ((bytesRcvd = in.read(byteBuffer, totalBytesRecvd, byteBuffer.length - totalBytesRecvd)) == -1) {
-	//				throw new SocketException("Connection closed prematurely");
-	//			}
-				
-				if ((bytesRcvd = rtp.receive(byteBuffer, 500, c)) > 0) {
-					totalBytesRecvd += bytesRcvd;
-					receivedMessage = true;
-				}
-			}
-			
-			System.out.println("From Server: " + new String(byteBuffer));
-			
-			// TODO: close the connection
-			rtp.close(c); // Close the socket and its streams
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+//		try {
+//			// TODO: send byte buffer
+//			rtp.send(byteBuffer, c);
+//
+//			// get query results
+//			boolean receivedMessage = false;
+//			int totalBytesRecvd = 0;
+//			int bytesRcvd;
+//			while (!receivedMessage) {
+//				byteBuffer = new byte[500];
+//	//			if ((bytesRcvd = in.read(byteBuffer, totalBytesRecvd, byteBuffer.length - totalBytesRecvd)) == -1) {
+//	//				throw new SocketException("Connection closed prematurely");
+//	//			}
+//
+//				if ((bytesRcvd = rtp.receive(byteBuffer, 500, c)) > 0) {
+//					totalBytesRecvd += bytesRcvd;
+//					receivedMessage = true;
+//				}
+//			}
+//
+//			System.out.println("From Server: " + new String(byteBuffer));
+//
+//			// TODO: close the connection
+//			rtp.close(c); // Close the socket and its streams
+//
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
 	}
 	
 	/*

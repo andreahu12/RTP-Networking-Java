@@ -1,6 +1,7 @@
 
 import org.omg.CORBA.DATA_CONVERSION;
 
+import javax.xml.crypto.Data;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
@@ -35,7 +36,8 @@ public class Connection {
 	private int MAX_WINDOW_SIZE; // of our recieve buffer
 	private LinkedBlockingQueue<Byte> sendBuffer;
 	// remainingBufferSize = recieveBuffer max size - size(receiveBuffer)
-	private LinkedBlockingQueue<Byte> receiveBuffer;
+	private LinkedBlockingQueue<DatagramPacket> receiveBuffer;
+    private Queue<Byte> receiveRemainder;
     // remainingBufferSize = recieveBuffer max size - size(receiveBuffer)
     private LinkedBlockingQueue<DatagramPacket> ackBuffer;
 	private int lastByteSent; // LastByteSent - LastByteAcked <= rwnd
@@ -60,7 +62,8 @@ public class Connection {
 		this.localPort= localPort;
 
 		sendBuffer = new LinkedBlockingQueue<Byte>();
-		receiveBuffer = new LinkedBlockingQueue<Byte>();
+		receiveBuffer = new LinkedBlockingQueue<DatagramPacket>();
+        receiveRemainder = new LinkedList<Byte>();
         ackBuffer = new LinkedBlockingQueue<DatagramPacket>();
 	}
 	
@@ -84,9 +87,13 @@ public class Connection {
 		MAX_WINDOW_SIZE = size * MAX_RTP_PACKET_SIZE;
 	}
 	
-	public LinkedBlockingQueue<Byte> getReceiveBuffer() {
+	public LinkedBlockingQueue<DatagramPacket> getReceiveBuffer() {
 		return receiveBuffer;
 	}
+
+    public Queue<Byte> getReceiveRemainder() {
+        return receiveRemainder;
+    }
 
     public LinkedBlockingQueue<DatagramPacket> getAckBuffer() {
         return ackBuffer;
@@ -99,15 +106,15 @@ public class Connection {
 	 * @param ackNum
 	 * @param payload
 	 */
-	public void addToReceiveBuffer(int ackNum, byte[] payload) {
-		if (!isDuplicateAckNum(ackNum)) {
-			receivedAckNumbers.add(ackNum);
-			int payloadSize = payload.length;
-			for (int i = 0; i < payloadSize; i++) {
-				receiveBuffer.add(payload[i]);
-			}
-		}
-	}
+//	public void addToReceiveBuffer(int ackNum, byte[] payload) {
+//		if (!isDuplicateAckNum(ackNum)) {
+//			receivedAckNumbers.add(ackNum);
+//			int payloadSize = payload.length;
+//			for (int i = 0; i < payloadSize; i++) {
+//				receiveBuffer.add(payload[i]);
+//			}
+//		}
+//	}
 	
 	/**
 	 * Only adds non-duplicate sequence number payloads to the server buffer. 
@@ -192,9 +199,9 @@ public class Connection {
 	 * @return byte array of the entire result from server, or null if no result
 	 */
 
-	public byte[] readReceiveResult(int bytes) {
-		return readResult(bytes, receiveBuffer);
-	}
+//	public byte[] readReceiveResult(int bytes) {
+//		return readResult(bytes, receiveBuffer);
+//	}
 	
 	/**
 	 * Takes a byte queue and pops the appropriate number of bytes

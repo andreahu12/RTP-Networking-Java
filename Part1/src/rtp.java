@@ -220,12 +220,12 @@ public class rtp {
             (new MultiplexData()).start();
             multiplexRunning = true;
         }
-        try { //make connection, send synack, listen for ack, return ocnnection
+        try { //make connection, send synack, listen for ack, return connection
             DatagramPacket synPacket = synQ.take(); //will block until there is something to pop
     //        DatagramPacket receivePacket = new DatagramPacket(
     //                new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 
-            Packet rtpReceivePacket = rtpBytesToPacket(synPacket.getData());
+//            Packet rtpReceivePacket = rtpBytesToPacket(synPacket.getData());
             InetAddress clientAddress = synPacket.getAddress();
             int clientPort = synPacket.getPort();
 
@@ -266,7 +266,7 @@ public class rtp {
 		
 		InetAddress localAddress = socket.getLocalAddress();
 		int localPort = socket.getLocalPort();
-		//TODO:I only changed the getClientaddr/port... to getLocal to compile and server to remote
+		//TODO:I only changed the getClientaddr/port... to getLocal to compile and server to remote -jw
 
 		InetAddress clientAddress = c.getLocalAddress();
 		int clientPort = c.getLocalPort();
@@ -357,6 +357,11 @@ public class rtp {
 	
 	/**
 	 * Converts data to a bytestream and sends packets to the other end.
+     * loop:
+     * Send as many packets as possible according to flow control
+     * Receive entire ack buffer to update number of things that could be sent
+     *
+     *
 	 * TODO: THIS ONLY SENDS FROM CLIENT TO SERVER FOR NOW
 	 * TODO: FIND A WAY TO TELL THE SERVER WHICH CLIENT TO SEND TO
      *
@@ -366,15 +371,15 @@ public class rtp {
 	public static void send(byte[] data, Connection connection) {
 		// TODO: set the destination of each datagram packet
 		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data);
-		Connection c = getConnection(socket.getLocalAddress().getHostAddress(), 
-				String.valueOf(socket.getLocalPort()));
+		//Connection c = getConnection(socket.getLocalAddress().getHostAddress(),
+		//		String.valueOf(socket.getLocalPort()));
 
 		boolean canSendPacket = true;
 		while (packetsToSend.size() > 0) {
 			if (canSendPacket) {
 				DatagramPacket toSend = packetsToSend.peek();
-				toSend.setAddress(c.getRemoteAddress());
-				toSend.setPort(c.getRemotePort());
+				toSend.setAddress(connection.getRemoteAddress());
+				toSend.setPort(connection.getRemotePort());
 				
 				try {
 					socket.send(toSend);
@@ -395,7 +400,7 @@ public class rtp {
 					if (ack != null) {
 						byte[] bytes = ack.getData();
 						Packet rtpAck = rtpBytesToPacket(bytes);
-						if (rtpAck.getACK() && !c.isDuplicateAckNum(rtpAck.getAckNumber())) {
+						if (rtpAck.getACK() && !connection.isDuplicateAckNum(rtpAck.getAckNumber())) {
 							// we received a valid ack!
 							int remainingBufferSize = rtpAck.getRemainingBufferSize();
 							
@@ -460,34 +465,65 @@ public class rtp {
 	
 	/**
 	 * NOTE: THIS ONLY WORKS FOR THE CLIENT SIDE
-	 * TODO: RETRIEVE THE CORRECT CONNECTION AT THE SERVER SIDE TOO
-	 * Reads a specified number of bytes and return them
+     *
+	 * Reads a specified number of bytes from the receieve buffer and return them
+     *  If the requested number of bytes isn't the size of a packet, the remainder go
+     *      into a remainder buffer for temporary storage. Data is pulled from here before the receive buffer
      *
 	 * @param numBytesRequested
 	 * @return number of bytes read
 	 */
-	public static int receive(byte[] writeToBuffer, int numBytesRequested, Connection c) {
+	public static Byte[] receive(int numBytesRequested, Connection c) {
 		
 		if (c == null) {
 			// connection does not exist yet
 			System.out.println("rtp.receive: connection does not exist yet");
-			return -1;
+			return null;
 		}
-		
+
 		int numBytesReturned = Math.min(numBytesRequested, c.getReceiveBufferSize());
-		
+
 		if (numBytesReturned == 0) {
 			System.out.println("rtp.receive: no bytes to read");
-			return -1;
+			return null;
 		}
-		
-		writeToBuffer = new byte[numBytesReturned];
-		
-		for (int i = 0; i < numBytesReturned; i++) {
-			writeToBuffer[i] = c.getReceiveBuffer().poll();
+
+        Byte[] writeToBuffer = new Byte[numBytesReturned];
+        Queue<Byte> receiveRemainder = c.getReceiveRemainder();
+        int remainingBytes = numBytesRequested - receiveRemainder.size();
+        //pull off either num bytes returned or the entire receive remaneder buffer depending on which is full
+		for (int i = 0; i < (numBytesReturned<receiveRemainder.size()?numBytesRequested:receiveRemainder.size()); i++) {
+			writeToBuffer[i] = receiveRemainder.remove();
 		}
-		
-		return numBytesReturned;
+
+        //TODO: get data from packets and send ack and store remainder in receiveRemainder
+        while(remainingBytes>0){
+            DatagramPacket packet = c.getReceiveBuffer().remove();
+
+            try {
+                sendAck(rtpBytesToPacket(packet.getData()), c);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            Packet rtpPacket = rtpBytesToPacket(packet.getData());
+            byte[] payload = rtpPacket.getPayload();
+
+            //either the remaining bytes or the entire payload depending on which is smaller
+            int bytesToTake = remainingBytes<Packet.getMaxSegmentSize()?remainingBytes:Packet.getMaxSegmentSize();
+
+            for (int i = 0; i<bytesToTake ;i++){
+                writeToBuffer[numBytesRequested-remainingBytes] = payload[i];
+                remainingBytes--;
+            }
+
+            if(remainingBytes<=0){ //last packet
+                for(int i = 0; i<Packet.getMaxSegmentSize()-bytesToTake; i++)//remainder in the payload
+                    receiveRemainder.add(payload[i+bytesToTake]);
+            }
+        }
+
+		return writeToBuffer;
 	}
 
 	/**
@@ -740,17 +776,17 @@ public class rtp {
                         if (rtpReceivePacket.getACK()) { //if ack, put in corresponding ack buffer
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                             if (c != null) {
-                                System.out.println("MultiplexData.run: received an ACK packet");
+                                System.out.println("MultiplexData.run: Packet is an ACK packet");
                                 c.getAckBuffer().put(receivePacket);
                             }
                         } else if (rtpReceivePacket.getSYN()) { //if syn put in syn buffer
                             System.out.println("MultiplexData.run: Packet is a SYN packet");
                             synQ.add(receivePacket);
                         } else { //data to put in corresponding recieve buffer
+                            System.out.println("MultiplexData.run: Packet is a data packet");
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                             if (c != null) {
-                                for (Byte b : receivePacket.getData())
-                                    c.getReceiveBuffer().put(b);
+                               c.getReceiveBuffer().put(receivePacket);
                             }
                         }
                     }
