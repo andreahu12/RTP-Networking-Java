@@ -26,7 +26,7 @@ public class rtp {
 //	private static int TIMEOUT = 2000; // arbitrary milliseconds
 	private static final int MAX_SEGMENT_SIZE = 972; 
 	private static DatagramSocket socket;
-
+    private static boolean multiplexRunning = false;
 
     private static LinkedBlockingQueue<DatagramPacket> synQ = new LinkedBlockingQueue<DatagramPacket>();
 
@@ -216,7 +216,10 @@ public class rtp {
      * @return The connection with the client
 	 */
 	public static Connection accept() {
-        (new MultiplexData()).start();
+        if(!multiplexRunning) {
+            (new MultiplexData()).start();
+            multiplexRunning = true;
+        }
         try { //make connection, send synack, listen for ack, return ocnnection
             DatagramPacket synPacket = synQ.take(); //will block until there is something to pop
     //        DatagramPacket receivePacket = new DatagramPacket(
