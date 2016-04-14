@@ -3,20 +3,22 @@ Using UDP Sockets to mimic TCP
 
 Milestones
 
-	) Establish a connection - Andrea (mon)
-
-	) Close a connection - Andrea  (mon)
-
-	) Establish multiple connections (Wed) - Jeffer
-
 	) Send a packet from multiple clients to server and back (Thur) - Jeffer
 
 	----
+	) Implement flow control and package re-ordering detection - the sequence and ack number thing (Fri) - Jeffer
+		ackno = seqno+packload
 
-	) Implement lost packet detection - timeouts (Fri) - Andrea
+	) Implement lost packet detection & duplicate - timeouts (sat) - Andrea
+		send - timeout and resend
+		receive - make ack no. (which will probably be done in flow crt) and check dupes
 
-	) Implement package corruption detection - checksum (Fri) - Andrea
+	) Implement package corruption detection - checksum (sat) - Andrea
+		at receieve
 
-	) Implement flow control and package re-ordering detection - the sequence and ack number thing (Sat) - Jeffer
+	) Implement Congestion control - RTT and slow start and ssthresh stuff (mon) - Jeffer
 
-	) Implement Congestion control - RTT and slow start and ssthresh stuff (sun) - Jeffer
+	) Office hours (tue) - 1:30pm-3pm
+
+	) Write FTA (by tue) - Andrea
+		
