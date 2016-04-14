@@ -493,28 +493,29 @@ public class rtp {
 		}
 
         while(remainingBytes>0){
-            DatagramPacket packet = c.getReceiveBuffer().remove();
-
             try {
+                DatagramPacket packet = c.getReceiveBuffer().take();
                 sendAck(rtpBytesToPacket(packet.getData()), c);
+
+
+                Packet rtpPacket = rtpBytesToPacket(packet.getData());
+                byte[] payload = rtpPacket.getPayload();
+
+
+                //either the remaining bytes or the entire payload depending on which is smaller
+                int bytesToTake = remainingBytes<payload.length?remainingBytes:payload.length;
+
+                for (int i = 0; i<bytesToTake ;i++){
+                    writeToBuffer[numBytesRequested-remainingBytes] = payload[i];
+                    remainingBytes--;
+                }
+
+                if(remainingBytes<=0){ //last packet
+                    for(int i = 0; i<payload.length-bytesToTake; i++)//remainder in the payload
+                        receiveRemainder.add(payload[i+bytesToTake]);
+                }
             } catch (Exception e) {
                 e.printStackTrace();
-            }
-
-            Packet rtpPacket = rtpBytesToPacket(packet.getData());
-            byte[] payload = rtpPacket.getPayload();
-
-            //either the remaining bytes or the entire payload depending on which is smaller
-            int bytesToTake = remainingBytes<payload.length?remainingBytes:payload.length;
-
-            for (int i = 0; i<bytesToTake ;i++){
-                writeToBuffer[numBytesRequested-remainingBytes] = payload[i];
-                remainingBytes--;
-            }
-
-            if(remainingBytes<=0){ //last packet
-                for(int i = 0; i<payload.length-bytesToTake; i++)//remainder in the payload
-                    receiveRemainder.add(payload[i+bytesToTake]);
             }
         }
 
@@ -766,7 +767,7 @@ public class rtp {
                         Packet rtpReceivePacket = rtpBytesToPacket(receivePacket.getData());
                         InetAddress remoteAddress = receivePacket.getAddress();
                         int remotePort = receivePacket.getPort();
-                        printRtpPacketFlags(rtpReceivePacket);
+//                        printRtpPacketFlags(rtpReceivePacket);
 
                         if (rtpReceivePacket.getACK()) { //if ack, put in corresponding ack buffer
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
