@@ -48,10 +48,27 @@ public class dbclientRTP {
 		Connection c = null;
 		try {
 			c = rtp.connect(serverIP, servPort, windowSizeInBytes);
+
+            byte[] test = {1,2,3,4};
+            System.out.println("dbClient: Sending data: 1,2,3,4");
+            rtp.send(test,c);
+            System.out.println("dbClient: Data sent");
+
+            System.out.println("dbClient: looking for 4 bytes of data");
+            Byte[] data = rtp.receive(4,c);
+
+            System.out.print("dbClient: read bytes: ");
+            for (Byte b:data) {
+                System.out.print(b.toString());
+            }
+            System.out.println();
+
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
-		
+
+
+
 //		try {
 //			// TODO: send byte buffer
 //			rtp.send(byteBuffer, c);

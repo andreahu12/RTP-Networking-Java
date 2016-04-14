@@ -38,7 +38,7 @@ public class rtp {
 	/**
 	 * Makes a server socket for the application that the clients will connect to. <br>
 	 * Only call this in the server upon startup.
-	 * @param port the port number to listen on
+	 * @param port the port to listen on
 	 * @return the bound socket
 	 * @throws SocketException
 	 */
@@ -53,14 +53,12 @@ public class rtp {
 	 * Makes a connection object on client side. <br>
 	 * Assigns window size to the connection.
      *
-     * @param serverIp the ip address of the server
-     * @param serverPort the port number of the server
-	 * @param windowSize in terms of packets
+	 * @param windowSizeInBytes
 	 * @return whether or not the connection attempt succeeded
 	 * @throws Exception 
 	 */
 	@SuppressWarnings("finally")
-	public static Connection connect(InetAddress serverIP, int serverPort, int windowSize) throws Exception {
+	public static Connection connect(InetAddress serverIP, int serverPort, int windowSizeInBytes) throws Exception {
 		System.out.println("\n----------------- Connect --------------------");
 		socket = new DatagramSocket();
 
@@ -86,7 +84,7 @@ public class rtp {
             (new MultiplexData()).start();
 
 			Connection c = createConnection(socket.getLocalAddress(), socket.getLocalPort(), serverIP, serverPort);
-			c.setWindowSize(windowSize);
+			c.setWindowSize(windowSizeInBytes);
 
 			System.out.println("rtp.connect: 1. Created a connection object in hashmap");
 			
@@ -169,8 +167,8 @@ public class rtp {
 	
 	/**
 	 * Creates a SynAck packet for step 2 of the 3-way handshake
-	 * @param clientIP the ip address of the client
-	 * @param clientPort the port number of the client
+	 * @param clientIP
+	 * @param clientPort
 	 * @return
 	 */
 	private static DatagramPacket makeSynAckPacket(InetAddress clientIP, int clientPort) {
@@ -182,8 +180,8 @@ public class rtp {
 	
 	/**
 	 * Makes a SYN packet for part 1 of the 3-way handshake
-	 * @param serverIP the ip address of the server
-	 * @param serverPort the port number of the server
+	 * @param serverIP
+	 * @param serverPort
 	 * @return
 	 */
 	private static DatagramPacket makeSynPacket(InetAddress serverIP, int serverPort) {
@@ -198,7 +196,7 @@ public class rtp {
 	
 	/**
 	 * Prints the values of FIN, SYN, and ACK
-	 * @param p a packet
+	 * @param p
 	 */
 	private static void printRtpPacketFlags(Packet p) {
 		System.out.println("FIN: " + p.getFIN());
@@ -258,7 +256,6 @@ public class rtp {
 	 * Only closes the client socket. <br>
 	 * Leaves the server socket open since server socket needs to stay open. <br>
 	 * Removes connection from rtp connection hashmap.
-	 * @param c the connection to close
 	 * @throws IOException 
 	 */
 	public static void close(Connection c) throws Exception {
@@ -330,8 +327,7 @@ public class rtp {
 	/**
 	 * Makes a FIN packet to send to either the server or the client in the close protocol. <br>
 	 * NOTE TO USER: Make sure to set the destination IP + port before sending.
-	 * 
-	 * @return a FIN packet in the form of a DatagramPacket
+	 * @return
 	 */
 	private static DatagramPacket makeFinPacket() {
 		Packet rtpFinPacket = new Packet(true, false, false, 1, 100, null);
@@ -344,10 +340,11 @@ public class rtp {
 	 * Makes a FIN acknowledgement packet for closing. <br>
 	 * Used by both the client and the server. <br>
 	 * NOTE TO USER: make sure to set the packet destination IP + Port<br>
-	 * @param packetToAck the packet you want to acknowledge
+	 * @param packetToAck
+	 * @param toClientFromServer
 	 * @return a FIN acknowledgement packet
 	 */
-	private static DatagramPacket makeFinAckPacket(Packet packetToAck) {
+	private static DatagramPacket makeFinAckPacket(Packet packetToAck, boolean toClientFromServer) {
 		int ackNumber = packetToAck.getSequenceNumber() + 1;
 		int sequenceNumber = packetToAck.getAckNumber();
 
@@ -365,62 +362,55 @@ public class rtp {
      * Send as many packets as possible according to flow control
      * Receive entire ack buffer to update number of things that could be sent
      *
-     *
-	 * TODO: THIS ONLY SENDS FROM CLIENT TO SERVER FOR NOW
-	 * TODO: FIND A WAY TO TELL THE SERVER WHICH CLIENT TO SEND TO
-     *
      * Sends a message. Finishes when the ack is received.
-	 * @param data the bytes that you want to send to the other side
-	 * @param connection the connection you want to send the data over
+	 * @param data
 	 */
 	public static void send(byte[] data, Connection connection) {
-		// TODO: set the destination of each datagram packet
+        System.out.println("rtp.send: Starting send");
 		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data);
-		//Connection c = getConnection(socket.getLocalAddress().getHostAddress(),
-		//		String.valueOf(socket.getLocalPort()));
+        int packetsToAckLeft = packetsToSend.size();
+//        packetsToSend.size() > 0
+		while (packetsToAckLeft > 0) {
+            //while there are packets left to ack
 
-		boolean canSendPacket = true;
-		while (packetsToSend.size() > 0) {
-			if (canSendPacket) {
-				DatagramPacket toSend = packetsToSend.peek();
-				toSend.setAddress(connection.getRemoteAddress());
-				toSend.setPort(connection.getRemotePort());
-				
-				try {
-					socket.send(toSend);
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}			
-			
-			DatagramPacket ack = new DatagramPacket(
-					new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
-			
-			boolean receivedValidPacket = false;
-			while (!receivedValidPacket) {
-				try {
-					// TODO: make this thread safe
-					socket.receive(ack);
-					
-					if (ack != null) {
-						byte[] bytes = ack.getData();
-						Packet rtpAck = rtpBytesToPacket(bytes);
-						if (rtpAck.getACK() && !connection.isDuplicateAckNum(rtpAck.getAckNumber())) {
-							// we received a valid ack!
-							int remainingBufferSize = rtpAck.getRemainingBufferSize();
-							
-							DatagramPacket nextPacket = packetsToSend.peek();
-							int nextPacketSize = rtpBytesToPacket(nextPacket.getData()).getPayloadSize();
-							
-							canSendPacket = (remainingBufferSize >= nextPacketSize);
-							receivedValidPacket = true;
-						}
-					}
-				} catch (Exception e) {
-					e.printStackTrace();
-				}
-			}
+            //send as many as you can according to flow control
+            int remainingWindowSize = packetsToSend.size();//connection.getLastByteAcked()-connection.getLastByteSent();
+            //TODO: fix this (its wrong, so i made it all) and init in connect
+
+            for(int i = 0; i<remainingWindowSize; i++){
+                DatagramPacket toSend = packetsToSend.remove();
+                toSend.setAddress(connection.getRemoteAddress());
+                toSend.setPort(connection.getRemotePort());
+                try {
+                    Packet tempDebug = rtpBytesToPacket(toSend.getData());
+                    System.out.println("rtp.send: sending packet: "+tempDebug.getSequenceNumber());
+                    socket.send(toSend);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+			while(!connection.getAckBuffer().isEmpty()){
+                // ack all of them
+                try {
+                    System.out.println("rtp.send: looking for acks: "+packetsToAckLeft);
+                    DatagramPacket ack = connection.getAckBuffer().take();
+                    byte[] bytes = ack.getData();
+                    Packet rtpAck = rtpBytesToPacket(bytes);
+                    System.out.println("rtp.send: got ack for: "+rtpAck.getAckNumber());
+                    if (rtpAck.getACK() && !connection.isDuplicateAckNum(rtpAck.getAckNumber())) {
+                        packetsToAckLeft--;
+                        // we received a valid ack
+                        connection.setLastByteAcked(rtpAck.getRemainingBufferSize()); //TODO:figure out with andrea
+//                            DatagramPacket nextPacket = packetsToSend.peek();
+//                            int nextPacketSize = rtpBytesToPacket(nextPacket.getData()).getPayloadSize();
+//                            canSendPacket = (remainingBufferSize >= nextPacketSize);
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
 		}
+        System.out.println("rtp.send: Ending send");
 	}
 	
 	/**
@@ -469,14 +459,14 @@ public class rtp {
 	}
 	
 	/**
-	 * NOTE: THIS ONLY WORKS FOR THE CLIENT SIDE
-     *
 	 * Reads a specified number of bytes from the receieve buffer and return them
      *  If the requested number of bytes isn't the size of a packet, the remainder go
      *      into a remainder buffer for temporary storage. Data is pulled from here before the receive buffer
      *
-	 * @param numBytesRequested the number of bytes the application is requesting to read
-	 * @param c the connection you want to receive the message over
+     * TODO:should also close a connection if receiving a fin bit
+     * TODO:what if data is requested but only half is there?
+     *
+	 * @param numBytesRequested
 	 * @return number of bytes read
 	 */
 	public static Byte[] receive(int numBytesRequested, Connection c) {
@@ -515,7 +505,7 @@ public class rtp {
             byte[] payload = rtpPacket.getPayload();
 
             //either the remaining bytes or the entire payload depending on which is smaller
-            int bytesToTake = remainingBytes<Packet.getMaxSegmentSize()?remainingBytes:Packet.getMaxSegmentSize();
+            int bytesToTake = remainingBytes<payload.length?remainingBytes:payload.length;
 
             for (int i = 0; i<bytesToTake ;i++){
                 writeToBuffer[numBytesRequested-remainingBytes] = payload[i];
@@ -523,7 +513,7 @@ public class rtp {
             }
 
             if(remainingBytes<=0){ //last packet
-                for(int i = 0; i<Packet.getMaxSegmentSize()-bytesToTake; i++)//remainder in the payload
+                for(int i = 0; i<payload.length-bytesToTake; i++)//remainder in the payload
                     receiveRemainder.add(payload[i+bytesToTake]);
             }
         }
@@ -543,13 +533,13 @@ public class rtp {
 		Packet ack = new Packet(false, true, false, newSeqNum, newAckNum, null);
 		ack.setRemainingBufferSize(c.getRemainingReceiveBufferSize());
 		byte[] ackBytes = ack.packetize();
-		DatagramPacket dpAck = new DatagramPacket(ackBytes, ackBytes.length, c.getLocalAddress(), c.getLocalPort());
+		DatagramPacket dpAck = new DatagramPacket(ackBytes, ackBytes.length, c.getRemoteAddress(), c.getRemotePort());
 		socket.send(dpAck);
 	}
 	
 	/**
 	 * Converts an array of rtpResultBytes into an rtp packet object
-	 * @param rtpResultBytes the bye array you want to turn into an RTP packet
+	 * @param rtpResultBytes
 	 * @return RTP Packet form of the byte array
 	 * @throws Exception 
 	 */
@@ -583,7 +573,7 @@ public class rtp {
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the value of the FIN flag
-	 * @param rtpPacket a byte array you want to get the value of FIN from
+	 * @param rtpPacket
 	 * @return FIN
 	 */
 	private static boolean getFinFromRtpPacket(byte[] rtpPacket) {
@@ -593,7 +583,7 @@ public class rtp {
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the value of the ACK flag
-	 * @param rtpPacket a byte array you want to get the value of ACK from
+	 * @param rtpPacket
 	 * @return ACK
 	 */
 	private static boolean getAckFromRtpPacket(byte[] rtpPacket) {
@@ -603,7 +593,7 @@ public class rtp {
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the value of the SYN flag
-	 * @param rtpPacket a byte array you want to get the value of SYN from
+	 * @param rtpPacket
 	 * @return SYN
 	 */
 	private static boolean getSynFromRtpPacket(byte[] rtpPacket) {
@@ -613,7 +603,7 @@ public class rtp {
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the Sequence Number
-	 * @param rtpPacket a byte array you want to get the value of SEQUENCE NUMBER from
+	 * @param rtpPacket
 	 * @return Sequence Number
 	 */
 	private static int getSeqNumFromRtpPacket(byte[] rtpPacket) {
@@ -623,7 +613,7 @@ public class rtp {
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the Ack Number
-	 * @param rtpPacket a byte array you want to get the value of ACK NUMBER from
+	 * @param rtpPacket
 	 * @return Ack Number
 	 */
 	private static int getAckNumFromRtpPacket(byte[] rtpPacket) {
@@ -633,7 +623,7 @@ public class rtp {
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the remaining buffer size
-	 * @param rtpPacket a byte array you want to get the REMAINING BUFFER SIZE from
+	 * @param rtpPacket
 	 * @return Remaining Buffer Size
 	 */
 	private static int getRemainingBufferSizeFromRtpPacket(byte[] rtpPacket) {
@@ -643,7 +633,7 @@ public class rtp {
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the payload size
-	 * @param rtpPacket a byte array you want to get the PAYLOAD SIZE from
+	 * @param rtpPacket
 	 * @return Payload Size
 	 */
 	private static int getPayloadSizeFromRtpPacket(byte[] rtpPacket) {
@@ -653,7 +643,7 @@ public class rtp {
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the payload
-	 * @param rtpPacket a byte array you want to get the PAYLOAD from
+	 * @param rtpPacket
 	 * @return Payload
 	 */
 	private static byte[] getPayloadFromRtpPacket(byte[] rtpPacket) {
@@ -663,8 +653,8 @@ public class rtp {
 	
 	/**
 	 * Generates a key for the hash map based on the clientAddress and clientPort
-	 * @param clientAddress the string version of the client IP address
-	 * @param clientPort the string version of the client port number
+	 * @param clientAddress
+	 * @param clientPort
 	 * @return unique client key for mapping
 	 */
 	private static String generateKey(String clientAddress, String clientPort) {
@@ -680,8 +670,8 @@ public class rtp {
 	
 	/**
 	 * Retrieves a connection from the hash map.
-	 * @param remoteAddress string version of the remote IP address
-	 * @param remotePort string version of the remote port number
+	 * @param remoteAddress
+	 * @param remotePort
 	 * @return Connection or null if it has not been created
 	 */
 	private static Connection getConnection(String remoteAddress, String remotePort) {
@@ -698,8 +688,8 @@ public class rtp {
 	/**
 	 * Returns true if the connection was deleted. 
 	 * Returns false if there was no connection to delete.
-	 * @param remoteAddress string version of the remote IP address
-	 * @param remotePort string version of the remote IP port
+	 * @param remoteAddress
+	 * @param remotePort
 	 * @return whether or not the desired connection was available to delete
 	 */
 	private static boolean deleteConnection(String remoteAddress, String remotePort) {

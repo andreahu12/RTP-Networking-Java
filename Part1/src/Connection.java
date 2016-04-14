@@ -222,5 +222,20 @@ public class Connection {
 			return result;
 		}
 	}
-	
+
+    public int getLastByteSent() {
+        return lastByteSent;
+    }
+
+    public void setLastByteSent(int lastByteSent) {
+        this.lastByteSent = lastByteSent;
+    }
+
+    public int getLastByteAcked() {
+        return lastByteAcked;
+    }
+
+    public void setLastByteAcked(int lastByteAcked) {
+        this.lastByteAcked = lastByteAcked;
+    }
 }

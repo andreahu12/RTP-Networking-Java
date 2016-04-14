@@ -172,7 +172,20 @@ public class dbengineRTP {
          */
         @Override
         public void run(){
-//
+            System.out.println("dbEngine: looking for 4 bytes of data");
+            Byte[] data = rtp.receive(4,connection);
+
+            System.out.print("dbEngine: read bytes: ");
+            for (Byte b:data) {
+                System.out.print(b.toString());
+            }
+            System.out.println();
+
+            byte[] test = {5,6,7,8};
+            System.out.println("dbEngine: Sending data: 1,2,3,4");
+            rtp.send(test,connection);
+            System.out.println("dbEngine: data sent");
+
 //            int recvMsgSize; // Size of received message
 //            byte[] byteBuffer = new byte[BUFSIZE]; // Receive buffer
 //			System.out.println("Handling client at " + connection.getRemoteAddress() +
