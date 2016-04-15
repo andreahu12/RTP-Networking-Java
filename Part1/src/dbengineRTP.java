@@ -173,7 +173,7 @@ public class dbengineRTP {
         @Override
         public void run(){
             System.out.println("dbEngine: looking for 4 bytes of data");
-            Byte[] data = rtp.receive(4,connection);
+            Byte[] data = rtp.receive(40,connection);
 
             System.out.print("dbEngine: read bytes: ");
             for (Byte b:data) {
@@ -182,7 +182,7 @@ public class dbengineRTP {
             System.out.println();
 
             byte[] test = {5,6,7,8};
-            System.out.println("dbEngine: Sending data: 1,2,3,4");
+            System.out.println("dbEngine: Sending data: 5,6,7,8");
             rtp.send(test,connection);
             System.out.println("dbEngine: data sent");
 

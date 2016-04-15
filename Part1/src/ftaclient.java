@@ -3,7 +3,7 @@ public class ftaclient {
 
 	public static void main(String[] args) {
 		if (args.length != 2) {
-			throw new Exception("ftaclient args should be: <Server Host IP or Name>:<Server Port> <Receive Window In Bytes");
+			//throw new Exception("ftaclient args should be: <Server Host IP or Name>:<Server Port> <Receive Window In Bytes");
 		}
 		
 		String serverIPorName = args[0];

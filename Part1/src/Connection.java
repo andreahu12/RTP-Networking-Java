@@ -43,7 +43,7 @@ public class Connection {
 	private int lastByteSent; // LastByteSent - LastByteAcked <= rwnd
 	private int lastByteAcked;
 	// rwnd is sent in the header and calculated in send
-	
+    public int remainingMessageSize; //>0 if in the middle of a message, used in recieve
 	/*
 	 * CONSTRUCTOR
 	 */
@@ -65,6 +65,8 @@ public class Connection {
 		receiveBuffer = new LinkedBlockingQueue<DatagramPacket>();
         receiveRemainder = new LinkedList<Byte>();
         ackBuffer = new LinkedBlockingQueue<DatagramPacket>();
+
+        remainingMessageSize = 0;
 	}
 	
 	/*

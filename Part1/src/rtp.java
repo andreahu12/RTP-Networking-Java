@@ -53,7 +53,7 @@ public class rtp {
 	 * Makes a connection object on client side. <br>
 	 * Assigns window size to the connection.
      *
-	 * @param windowSizeInBytes
+	 * @param windowSizeInBytes initial window size
 	 * @return whether or not the connection attempt succeeded
 	 * @throws Exception 
 	 */
@@ -383,7 +383,8 @@ public class rtp {
                 toSend.setPort(connection.getRemotePort());
                 try {
                     Packet tempDebug = rtpBytesToPacket(toSend.getData());
-                    System.out.println("rtp.send: sending packet: "+tempDebug.getSequenceNumber());
+                    System.out.println("rtp.send: sending packet with seq: "+tempDebug.getSequenceNumber());
+					System.out.println("rtp.send: sending packet with and payload: "+tempDebug.getPayloadSize());
                     socket.send(toSend);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -415,12 +416,21 @@ public class rtp {
 	
 	/**
 	 * Converts a byte array into a Queue of Datagram Packets.
-	 * @param data byte stream to convert
+	 * @param origData byte stream to convert
 	 * @return Queue of DatagramPackets
 	 */
-	private static Queue<DatagramPacket> convertStreamToPacketQueue(byte[] data) {
+	private static Queue<DatagramPacket> convertStreamToPacketQueue(byte[] origData) {
 		Queue<DatagramPacket> result = new LinkedList<DatagramPacket>();
-		
+        //4 bits in front to tell the size of the message
+        byte[] front = ByteBuffer.allocate(4).putInt(origData.length).array();
+        byte[] data = new byte[origData.length+front.length];
+        for (int i = 0; i<front.length; i++){
+            data[i] = front[i];
+        }
+        for (int i = front.length; i<data.length; i++){
+            data[i] = origData[i-front.length];
+        }
+
 		int numFullPackets = Math.floorDiv(data.length, MAX_SEGMENT_SIZE);
 		int bytesRemaining = data.length % MAX_SEGMENT_SIZE;
 		
@@ -466,60 +476,88 @@ public class rtp {
      * TODO:should also close a connection if receiving a fin bit
      * TODO:what if data is requested but only half is there?
      *
-	 * @param numBytesRequested
+	 * @param numBytesRequested the limit of the number of bytes recieve can read
 	 * @return number of bytes read
 	 */
 	public static Byte[] receive(int numBytesRequested, Connection c) {
-		
-		if (c == null) {
-			// connection does not exist yet
+		if (c == null) { // connection does not exist yet
 			System.out.println("rtp.receive: connection does not exist yet");
 			return null;
 		}
-
-		//int numBytesReturned = Math.min(numBytesRequested, c.getReceiveBuffer().size());
-
-		if (numBytesRequested == 0) {
+		if (numBytesRequested <= 0) {
 			System.out.println("rtp.receive: no bytes to read");
 			return null;
 		}
+        try{
+            Queue<Byte> receiveRemainder = c.getReceiveRemainder(); //reference to remainder buffer
 
-        Byte[] writeToBuffer = new Byte[numBytesRequested];
-        Queue<Byte> receiveRemainder = c.getReceiveRemainder();
-        int remainingBytes = numBytesRequested - receiveRemainder.size();
-        //pull off either num bytes returned or the entire receive remaneder buffer depending on which is full
-		for (int i = 0; i < (numBytesRequested<receiveRemainder.size()?numBytesRequested:receiveRemainder.size()); i++) {
-			writeToBuffer[i] = receiveRemainder.remove();
-		}
-
-        while(remainingBytes>0){
-            try {
+            //Step 1: if starting a new message, get the size put the rest of the packet into the remainder buffer
+            if(c.remainingMessageSize == 0) { //remaining message size is 0, so we need to update it with the first packet
+                //the remainder buffer has to be empty when this happens b/c of send assumptions
                 DatagramPacket packet = c.getReceiveBuffer().take();
                 sendAck(rtpBytesToPacket(packet.getData()), c);
-
-
                 Packet rtpPacket = rtpBytesToPacket(packet.getData());
                 byte[] payload = rtpPacket.getPayload();
 
-
-                //either the remaining bytes or the entire payload depending on which is smaller
-                int bytesToTake = remainingBytes<payload.length?remainingBytes:payload.length;
-
-                for (int i = 0; i<bytesToTake ;i++){
-                    writeToBuffer[numBytesRequested-remainingBytes] = payload[i];
-                    remainingBytes--;
+                if (c.remainingMessageSize == 0) { //get the message size from this packet
+                    byte[] arr = new byte[4];
+                    arr[0] = payload[0];
+                    arr[1] = payload[1];
+                    arr[2] = payload[2];
+                    arr[3] = payload[3];
+                    ByteBuffer bb = ByteBuffer.wrap(arr);
+//                    if(use_little_endian)
+//                        bb.order(ByteOrder.LITTLE_ENDIAN);
+                    c.remainingMessageSize = (bb.getInt());
+                    System.out.println("rtp.receive: new message of size: " + c.remainingMessageSize);
                 }
 
-                if(remainingBytes<=0){ //last packet
-                    for(int i = 0; i<payload.length-bytesToTake; i++)//remainder in the payload
-                        receiveRemainder.add(payload[i+bytesToTake]);
+                //fill remainder buffer with rest of this message
+                for (int i = 4; i < rtpPacket.getPayloadSize(); i++) { //remainder in the payload
+                    receiveRemainder.add(payload[i]);
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
             }
-        }
 
-		return writeToBuffer;
+            //Step 2: check if the limiting factor is the parameter or the message size
+            int leastDataReq = 0;
+            if (c.remainingMessageSize>=numBytesRequested){
+                leastDataReq = numBytesRequested;
+            } else {
+                leastDataReq = c.remainingMessageSize;
+            }
+
+            //Step 3: read the the limiting factor number of bytes starting from the remainder buffer
+            Byte[] writeToBuffer = new Byte[leastDataReq]; //output
+            int index = 0; //the position of the write buffer we're at
+            while(!receiveRemainder.isEmpty()) { //pulling from remainder buffer
+                if(leastDataReq > 0) {
+                    writeToBuffer[index] = receiveRemainder.remove();
+                    leastDataReq--;
+                    index++;
+                }
+            }
+            System.out.println("rtp.receive: finished remainder, need "+leastDataReq+" more bytes");
+            while(leastDataReq>0) { //pulling from receive buffer, receive remainder is now empty
+                DatagramPacket packet = c.getReceiveBuffer().take();
+                sendAck(rtpBytesToPacket(packet.getData()), c);
+                Packet rtpPacket = rtpBytesToPacket(packet.getData());
+                byte[] payload = rtpPacket.getPayload();
+
+                for (int i = 0; i < rtpPacket.getPayloadSize() ; i++) {
+                    if (leastDataReq > 0) { //still need to read more
+                        writeToBuffer[index] = payload[i];
+                        leastDataReq --;
+                        index++;
+                    } else { //put rest into remainder
+                        receiveRemainder.add(payload[i]);
+                    }
+                }
+            }
+            return writeToBuffer;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return null;
 	}
 
 	/**
