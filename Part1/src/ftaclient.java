@@ -11,7 +11,7 @@ public class ftaclient {
 		// get-post F G
 			// download "get_F", upload "post_G"
 		// disconnect: terminate gracefully
-		// TODO Auto-generated method stub
+		
 
 	}
 
