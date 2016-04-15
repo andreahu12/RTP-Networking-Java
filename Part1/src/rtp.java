@@ -15,10 +15,6 @@ import java.util.concurrent.LinkedBlockingQueue;
  *
  */
 public class rtp {
-	// TODO: implement writing at the server (need to know where to write to)
-	// TODO: implement reading at the server
-	// TODO: implement sending acknowledgements
-	
 	// string key is IP + port
 	private static ConcurrentHashMap<String, Connection> connections
 		= new ConcurrentHashMap<String, Connection>(); // for demultiplexing
@@ -474,7 +470,6 @@ public class rtp {
      *      into a remainder buffer for temporary storage. Data is pulled from here before the receive buffer
      *
      * TODO:should also close a connection if receiving a fin bit
-     * TODO:what if data is requested but only half is there?
      *
 	 * @param numBytesRequested the limit of the number of bytes recieve can read
 	 * @return number of bytes read
@@ -499,23 +494,24 @@ public class rtp {
                 Packet rtpPacket = rtpBytesToPacket(packet.getData());
                 byte[] payload = rtpPacket.getPayload();
 
-                if (c.remainingMessageSize == 0) { //get the message size from this packet
-                    byte[] arr = new byte[4];
-                    arr[0] = payload[0];
-                    arr[1] = payload[1];
-                    arr[2] = payload[2];
-                    arr[3] = payload[3];
-                    ByteBuffer bb = ByteBuffer.wrap(arr);
+                byte[] arr = new byte[4];
+                arr[0] = payload[0];
+                arr[1] = payload[1];
+                arr[2] = payload[2];
+                arr[3] = payload[3];
+                ByteBuffer bb = ByteBuffer.wrap(arr);
 //                    if(use_little_endian)
 //                        bb.order(ByteOrder.LITTLE_ENDIAN);
-                    c.remainingMessageSize = (bb.getInt());
-                    System.out.println("rtp.receive: new message of size: " + c.remainingMessageSize);
-                }
+                c.remainingMessageSize = (bb.getInt());
+                System.out.println("rtp.receive: new message of size: " + c.remainingMessageSize);
+
 
                 //fill remainder buffer with rest of this message
                 for (int i = 4; i < rtpPacket.getPayloadSize(); i++) { //remainder in the payload
                     receiveRemainder.add(payload[i]);
                 }
+            } else {
+                System.out.println("rtp.receive: finishing message of size: " + c.remainingMessageSize);
             }
 
             //Step 2: check if the limiting factor is the parameter or the message size
@@ -529,12 +525,11 @@ public class rtp {
             //Step 3: read the the limiting factor number of bytes starting from the remainder buffer
             Byte[] writeToBuffer = new Byte[leastDataReq]; //output
             int index = 0; //the position of the write buffer we're at
-            while(!receiveRemainder.isEmpty()) { //pulling from remainder buffer
-                if(leastDataReq > 0) {
-                    writeToBuffer[index] = receiveRemainder.remove();
-                    leastDataReq--;
-                    index++;
-                }
+            while(!receiveRemainder.isEmpty() && leastDataReq > 0) { //pulling from remainder buffer
+                writeToBuffer[index] = receiveRemainder.remove();
+                leastDataReq--;
+                c.remainingMessageSize--;
+                index++;
             }
             System.out.println("rtp.receive: finished remainder, need "+leastDataReq+" more bytes");
             while(leastDataReq>0) { //pulling from receive buffer, receive remainder is now empty
@@ -547,6 +542,7 @@ public class rtp {
                     if (leastDataReq > 0) { //still need to read more
                         writeToBuffer[index] = payload[i];
                         leastDataReq --;
+                        c.remainingMessageSize--;
                         index++;
                     } else { //put rest into remainder
                         receiveRemainder.add(payload[i]);
@@ -798,10 +794,7 @@ public class rtp {
                 System.out.println("\nMultiplexData.run: Checking for packet...");
                 try {
                     socket.receive(receivePacket);
-                    System.out.println("MultiplexData.run: socket.receive finished calling, got a packet");
-
                     if (receivePacket != null) {
-                        System.out.println("MultiplexData.run: The packet is not null");
                         Packet rtpReceivePacket = rtpBytesToPacket(receivePacket.getData());
                         InetAddress remoteAddress = receivePacket.getAddress();
                         int remotePort = receivePacket.getPort();
@@ -810,14 +803,14 @@ public class rtp {
                         if (rtpReceivePacket.getACK()) { //if ack, put in corresponding ack buffer
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                             if (c != null) {
-                                System.out.println("MultiplexData.run: Packet is an ACK packet");
+                                System.out.println("MultiplexData.run: Got an ACK packet");
                                 c.getAckBuffer().put(receivePacket);
                             }
                         } else if (rtpReceivePacket.getSYN()) { //if syn put in syn buffer
-                            System.out.println("MultiplexData.run: Packet is a SYN packet");
+                            System.out.println("MultiplexData.run: Got a SYN packet");
                             synQ.add(receivePacket);
                         } else { //data to put in corresponding recieve buffer
-                            System.out.println("MultiplexData.run: Packet is a data packet");
+                            System.out.println("MultiplexData.run: Got a data packet");
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                             if (c != null) {
                                c.getReceiveBuffer().put(receivePacket);
