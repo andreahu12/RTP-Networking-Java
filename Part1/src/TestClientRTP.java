@@ -49,7 +49,7 @@ public class TestClientRTP {
 
             byte[] test2 = {0,1,2,3,4,5};
             System.out.println("TestClientRTP: Sending data: 0,1,2,3,4,5");
-            rtp.send(test,c);
+            rtp.send(test2,c);
             System.out.println("TestClientRTP: Data sent");
 
 //            System.out.println("TestClientRTP: looking for 4 bytes of data");

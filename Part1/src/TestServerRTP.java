@@ -83,11 +83,14 @@ public class TestServerRTP {
 
 
             System.out.println("testServerRTP: testing timeouts");
-//            try {
-//                Thread.sleep(2000);
-//            } catch(InterruptedException ex) {
-//                Thread.currentThread().interrupt();
-//            }
+            try {
+                Thread.sleep(4000);
+            } catch(InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+            data = rtp.receive(1000,connection);
+            System.out.print("testServerRTP: expected: 0,1,2,3,4,5: " + bytesToString(data));
+            //todo:remve next two lines once dupicate detection is implemented
             data = rtp.receive(1000,connection);
             System.out.print("testServerRTP: expected: 0,1,2,3,4,5: " + bytesToString(data));
             System.out.println();
