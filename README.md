@@ -2,6 +2,7 @@
 Using UDP Sockets to mimic TCP
 
 Milestones
+
 	) Implement lost packet detection & duplicate - timeouts (sat) - Andrea
 		send - timeout and resend
 		receive - make ack no. (which will probably be done in flow crt) and check dupes
