@@ -57,7 +57,7 @@ public class TestServerRTP {
         @Override
         public void run(){
             System.out.println("testServerRTP: testing receive when requesting more data than a message in a single packet");
-            Byte[] data = rtp.receive(40,connection);
+            byte[] data = rtp.receive(40,connection);
             System.out.print("testServerRTP: expected: 1,2,3,4 actual: " + bytesToString(data));
             System.out.println();
             System.out.println();
@@ -89,7 +89,7 @@ public class TestServerRTP {
         }
     }
 
-    private static String bytesToString(Byte[] data){
+    private static String bytesToString(byte[] data){
         StringBuilder out = new StringBuilder();
         for (Byte b:data) {
             out.append(b.toString() + ",");

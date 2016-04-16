@@ -55,7 +55,7 @@ public class dbclientRTP {
             System.out.println("dbClient: Data sent");
 
             System.out.println("dbClient: looking for 4 bytes of data");
-            Byte[] data = rtp.receive(4,c);
+            byte[] data = rtp.receive(4,c);
 
             System.out.print("dbClient: read bytes: ");
             for (Byte b:data) {

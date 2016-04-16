@@ -536,7 +536,7 @@ public class rtp {
                 index++;
             }
             System.out.println("rtp.receive: finished remainder, need "+leastDataReq+" more bytes");
-            while(leastDataReq>0) { //pulling from receive buffer, receive remainder is now empty
+            while(leastDataReq > 0) { //pulling from receive buffer, receive remainder is now empty
                 DatagramPacket packet = c.getReceiveBuffer().take();
                 sendAck(rtpBytesToPacket(packet.getData()), c);
                 Packet rtpPacket = rtpBytesToPacket(packet.getData());
