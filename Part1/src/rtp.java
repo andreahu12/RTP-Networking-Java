@@ -19,7 +19,7 @@ public class rtp {
 	private static ConcurrentHashMap<String, Connection> connections
 		= new ConcurrentHashMap<String, Connection>(); // for demultiplexing
 	private static int RECEIVE_PACKET_BUFFER_SIZE = 2048; // arbitrary value
-	private static long TIMEOUT = 10; // arbitrary milliseconds; will time out all packets if TIMEOUT = 1
+	private static long TIMEOUT = 10000; // arbitrary milliseconds; will time out all packets if TIMEOUT = 1
 	private static final int MAX_SEGMENT_SIZE = 972; 
 	private static DatagramSocket socket;
     private static boolean multiplexRunning = false;
@@ -219,7 +219,7 @@ public class rtp {
             multiplexRunning = true;
         }
         try { //make connection, send synack, listen for ack, return connection
-            //TODO:take blocks forever, think about making it timeout
+            // TODO:take blocks forever, think about making it timeout
             DatagramPacket synPacket = synQ.take(); //will block until there is something to pop
     //        DatagramPacket receivePacket = new DatagramPacket(
     //                new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);

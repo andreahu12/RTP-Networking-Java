@@ -47,14 +47,19 @@ public class TestClientRTP {
             rtp.send(test,c);
             System.out.println("TestClientRTP: Data sent");
 
-            System.out.println("TestClientRTP: looking for 4 bytes of data");
-            byte[] data = rtp.receive(4,c);
+            byte[] test2 = {0,1,2,3,4,5};
+            System.out.println("TestClientRTP: Sending data: 0,1,2,3,4,5");
+            rtp.send(test,c);
+            System.out.println("TestClientRTP: Data sent");
 
-            System.out.print("TestClientRTP: read bytes: ");
-            for (Byte b:data) {
-                System.out.print(b.toString());
-            }
-            System.out.println();
+//            System.out.println("TestClientRTP: looking for 4 bytes of data");
+//            byte[] data = rtp.receive(4,c);
+//
+//            System.out.print("TestClientRTP: read bytes: ");
+//            for (Byte b:data) {
+//                System.out.print(b.toString());
+//            }
+//            System.out.println();
 
         } catch (Exception e1) {
             e1.printStackTrace();

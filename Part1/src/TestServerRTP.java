@@ -31,7 +31,7 @@ public class TestServerRTP {
          * Creates a new thread for each connection to send packages to said connection
          */
         while(true) {
-            Connection c = rtp.accept(1);
+            Connection c = rtp.accept(3);
             (new ConnectionThread(c)).start();
             // ah: can't close the client socket from the server
             //clntSock.close(); // Close the socket. We are done with this client!
@@ -75,17 +75,28 @@ public class TestServerRTP {
             System.out.println();
 
             System.out.println("testServerRTP: testing 10000 byte data");
-            data = rtp.receive(10000,connection);
+            data = rtp.receive(100000,connection);
             System.out.print("testServerRTP: expected: 10000 actual: " + (data.length));
             //System.out.print("testServerRTP: expected: 0,1,2,3,4 ....: " + bytesToString(data));
             System.out.println();
             System.out.println();
 
 
-            System.out.println("testServerRTP: Sending data: 5,6,7,8");
-            byte[] test = {5,6,7,8};
-            rtp.send(test,connection);
-            System.out.println("testServerRTP: data sent");
+            System.out.println("testServerRTP: testing timeouts");
+//            try {
+//                Thread.sleep(2000);
+//            } catch(InterruptedException ex) {
+//                Thread.currentThread().interrupt();
+//            }
+            data = rtp.receive(1000,connection);
+            System.out.print("testServerRTP: expected: 0,1,2,3,4,5: " + bytesToString(data));
+            System.out.println();
+            System.out.println();
+
+//            System.out.println("testServerRTP: Sending data: 5,6,7,8");
+//            byte[] test = {5,6,7,8};
+//            rtp.send(test,connection);
+//            System.out.println("testServerRTP: data sent");
         }
     }
 
