@@ -2,9 +2,13 @@
 import org.omg.CORBA.DATA_CONVERSION;
 
 import javax.xml.crypto.Data;
+
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -45,7 +49,26 @@ public class Connection {
 	// rwnd is sent in the header and calculated in send
     public int remainingMessageSize; //>0 if in the middle of a message, used in receive
     public int remoteReceiveWindowRemaining; //initialized in conect
-
+    
+    
+    /*
+     * For timeout checking. 
+     * ASSUMPTION: timeouts are unique (no two packets are made at the same time)
+     */
+    
+    // set up in rtp.send(); lets us know which timeouts have been satisfied in rtp.receive()
+    ConcurrentHashMap<Integer, Long> ackNumToTimeout = new ConcurrentHashMap<Integer, Long>();
+    
+    // set up rtp.send(); timeouts should be in chronological order, so index 0 is going to expire next
+//    ArrayList<Long> timeoutList = (ArrayList<Long>) Collections.synchronizedList(new ArrayList<Long>());
+    ConcurrentLinkedQueue<Long> timeoutList = new ConcurrentLinkedQueue<Long>();
+    
+    // set up in rtp.send(); maps timeouts to DatagramPackets so that we can easily reset the packetsToSend (GBN)
+    ConcurrentHashMap<Long, DatagramPacket> timeoutToDatagramPacket = new ConcurrentHashMap<Long, DatagramPacket>();
+    
+    
+    
+    
 	/*
 	 * CONSTRUCTOR
 	 */
@@ -179,8 +202,98 @@ public class Connection {
 		return sendBuffer.size();
 	}
 	
+	/**
+	 * TODO: IMPLEMENT checksum
+	 * Takes in an ACK packet and makes sure it's not a duplicate
+	 * and passes checksum.
+	 * @param p an ack packet
+	 * @return whether it is a valid ack packet
+	 */
+	public boolean isValidAck(Packet p) {
+		boolean passedChecksum = checksum(p);
+		boolean notDup = !isDuplicateAckNum(p.getAckNumber());
+		return passedChecksum && notDup;
+	}
 	
-
+	
+	/**
+	 * TODO: IMPLEMENT CHECKSUM
+	 * @param p
+	 * @return
+	 */
+	private boolean checksum(Packet p) {
+		// TODO Auto-generated method stub
+		return true;
+	}
+	
+	/**
+	 * Resets timeoutList, timeoutToDatagramPacket, ackNumToTimeout
+	 */
+	public void resetTimeouts() {
+		timeoutList = new ConcurrentLinkedQueue<Long>();
+		timeoutToDatagramPacket = new ConcurrentHashMap<Long, DatagramPacket>();
+		ackNumToTimeout = new ConcurrentHashMap<Integer, Long>();
+	}
+	
+	/**
+	 * Updates timeoutList, timeoutToDatagramPacket, ackNumToTimeout
+	 * @param timeout
+	 * @param dp
+	 * @param expectedAckNum
+	 */
+	public void addTimeout(Long timeout, DatagramPacket dp, int expectedAckNum) {
+		timeoutList.add(timeout);
+		timeoutToDatagramPacket.put(timeout, dp);
+		ackNumToTimeout.put(expectedAckNum, timeout);
+	}
+	
+	/**
+	 * Checks if a packet has timed out. <br>
+	 * Use in rtp.send()
+	 * @return
+	 */
+	private boolean hasTimedOutPacket() {
+		if (timeoutList.isEmpty()) {
+			return false;
+		} else {
+			Long quickestTimeout = timeoutList.peek();
+			Long currentTime = System.currentTimeMillis();
+			return quickestTimeout < currentTime;
+		}
+	}
+	
+	/**
+	 * Gets timeout from timeoutList to retrieve corresponding DatagramPacket from timeoutToDatagramPacket. <br>
+	 * Does NOT remove the timeout or packet from any of the timeout data structures. <br>
+	 * and returns it.
+	 * @return timed out packet
+	 */
+	public DatagramPacket getTimedOutPacket() {
+		if (hasTimedOutPacket()) {
+			Long timeout = timeoutList.peek();
+			DatagramPacket dp = timeoutToDatagramPacket.get(timeout);
+			return dp;
+		}
+		return null;
+	}
+	
+	/**
+	 * Call this in rtp multiplex thread <br>
+	 * Removes the timeout from timeoutList, timeoutToDatagramPacket, and ackNumToTimeout
+	 * @param ackNum
+	 * @return
+	 */
+	public void removeTimeout(int ackNum) {
+		Long timeout = ackNumToTimeout.get(ackNum);
+		
+		// remove timeout from timeout list
+		timeoutList.remove(timeout);
+		// remove timeout-DP from timeoutToDatagramPacket
+		timeoutToDatagramPacket.remove(timeout);
+		// remove ACK-timeout from ackNumToTimeout
+		ackNumToTimeout.remove(ackNum);
+	}
+	
 	
 	/**
 	 * Returns the min(numBytes, length of the queue) bytes of the 
@@ -195,6 +308,7 @@ public class Connection {
 //		return readResult(bytes, receiveBuffer);
 //	}
 	
+
 	/**
 	 * Takes a byte queue and pops the appropriate number of bytes
 	 * into a byte array and returns it. This is done on a new array 

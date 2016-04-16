@@ -19,7 +19,7 @@ public class rtp {
 	private static ConcurrentHashMap<String, Connection> connections
 		= new ConcurrentHashMap<String, Connection>(); // for demultiplexing
 	private static int RECEIVE_PACKET_BUFFER_SIZE = 2048; // arbitrary value
-//	private static int TIMEOUT = 2000; // arbitrary milliseconds
+	private static long TIMEOUT = 10; // arbitrary milliseconds; will time out all packets if TIMEOUT = 1
 	private static final int MAX_SEGMENT_SIZE = 972; 
 	private static DatagramSocket socket;
     private static boolean multiplexRunning = false;
@@ -371,16 +371,47 @@ public class rtp {
         int packetsToAckLeft = packetsToSend.size();
         int packetsSentButNotAcked = 0;
         int remainingPacketsToSend = packetsToSend.size();
-//        packetsToSend.size() > 0
+        
 		while (packetsToAckLeft > 0) {
             //while there are packets left to ack
+			
+			// check for timed out packets, and resets values if necessary 
+			DatagramPacket timedOutPacket = connection.getTimedOutPacket();
+			if (timedOutPacket != null) { // a packet has timed out
+				System.out.println("\n-----------------------------------------");
+				System.out.println("rtp.send: ERROR - a packet has timed out!");
+				
+				System.out.println("rtp.send: packetsToAckLeft BEFORE reset is " + packetsToAckLeft);
+				
+				// go back n
+				packetsToSend = getPacketsToResend(data, timedOutPacket);
+				
+				// reset these values
+				packetsToAckLeft = packetsToSend.size();
+				packetsSentButNotAcked = 0;
+				remainingPacketsToSend = packetsToSend.size();
+				System.out.println("rtp.send: packetsToAckLeft AFTER reset is " + packetsToAckLeft);
+				
+				// reset the timeout trackers
+				connection.resetTimeouts();
+				System.out.println("rtp.send: reset the timeout data structures in the connection");
+				System.out.println("-----------------------------------------\n");
+			}
+
 
             //send as many bytes as you can according to flow control
-            //for(int i = 0; i<packetsToSend.size(); i++){
             while(remainingPacketsToSend>0 && packetsSentButNotAcked<connection.remoteReceiveWindowRemaining){
                 DatagramPacket toSend = packetsToSend.remove();
                 toSend.setAddress(connection.getRemoteAddress());
                 toSend.setPort(connection.getRemotePort());
+                
+                // adds a timeout value to the connection
+                Long timeout = calculateTimeout();
+                int expectedAckNum = getExpectedAckNum(toSend);
+                connection.addTimeout(timeout, toSend, expectedAckNum);
+                Long currentTime = System.currentTimeMillis();
+                System.out.println("rtp.send: sending a new packet, so we added a timeout " + "("+ TIMEOUT +" ms)"+ " to the connection");
+                
                 packetsSentButNotAcked++;
                 remainingPacketsToSend--;
                 try {
@@ -405,6 +436,12 @@ public class rtp {
                         // we received a valid ack
                         packetsSentButNotAcked--;
                         connection.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize();
+                        
+                        // remove the timeout from the connection
+                        System.out.println("rtp.send: received ack before timeout. need to remove timeout for ack# " 
+                        		+ rtpAck.getAckNumber());
+                        connection.removeTimeout(rtpAck.getAckNumber());
+                        System.out.println("rtp.send: finished removing timeout for ack# " + rtpAck.getAckNumber());
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -412,6 +449,50 @@ public class rtp {
             }
 		}
         System.out.println("rtp.send: Ending send");
+	}
+	
+	/**
+	 * Takes in a DatagramPacket and calculates the expected ACK number. <br>
+	 * For timeout checking in the receive thread. <br>
+	 * Will be called in the send method.
+	 * @param p packet to calculate ACK number for
+	 * @return
+	 */
+	private static int getExpectedAckNum(DatagramPacket p) {
+		Packet rtp = rtpBytesToPacket(p.getData());
+		int newAckNum = rtp.getSequenceNumber() + rtp.getPayloadSize();
+		return newAckNum;
+	}
+	
+	/**
+	 * According to GBN, we need to resend everything starting at the last failed packet. <br>
+	 * This takes the orignal data, makes a queue of datagram packets, iterates through the queue,
+	 * pops all the successful packets until we get to the timed out packet. <br>
+	 * 
+	 * @param original
+	 * @param timedOutPacket
+	 * @return all the packets we need to resend
+	 */
+	private static Queue<DatagramPacket> getPacketsToResend(byte[] data, DatagramPacket timedOutPacket) {
+		Queue<DatagramPacket> q = convertStreamToPacketQueue(data);
+		
+		Packet firstPacket = rtpBytesToPacket(q.peek().getData());
+		Packet rtpTimedOutPacket = rtpBytesToPacket(timedOutPacket.getData());
+		
+		while (firstPacket.getSequenceNumber() != rtpTimedOutPacket.getSequenceNumber()) {
+			q.poll(); // remove it from the q
+			firstPacket = rtpBytesToPacket(q.peek().getData());
+		}
+		
+		return q;
+	}
+	
+	/**
+	 * Calculates when the packet should timeout.
+	 * @return timeout
+	 */
+	private static Long calculateTimeout() {
+		return System.currentTimeMillis() + TIMEOUT;
 	}
 	
 	/**
@@ -508,7 +589,8 @@ public class rtp {
 //                        bb.order(ByteOrder.LITTLE_ENDIAN);
                 c.remainingMessageSize = (bb.getInt());
                 System.out.println("rtp.receive: new message of size: " + c.remainingMessageSize);
-
+                
+                // TODO: dup check: new message has been made so we should clear the seq and ack hashmaps in connection
 
                 //fill remainder buffer with rest of this message
                 for (int i = 4; i < rtpPacket.getPayloadSize(); i++) { //remainder in the payload
@@ -810,6 +892,7 @@ public class rtp {
                                 System.out.println("MultiplexData.run: Got an ACK packet");
                                 c.getAckBuffer().put(receivePacket);
                             }
+
                         } else if (rtpReceivePacket.getSYN()) { //if syn put in syn buffer
                             System.out.println("MultiplexData.run: Got a SYN packet");
                             synQ.add(receivePacket);
