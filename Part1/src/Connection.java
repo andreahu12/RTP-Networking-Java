@@ -33,17 +33,19 @@ public class Connection {
 	private int localPort;
 	
 	//flow control variables
-	private int MAX_WINDOW_SIZE; // of our recieve buffer
+	private int maxLocalWindowSize; //of local receive buffer. initialized in connect/accept
 	private LinkedBlockingQueue<Byte> sendBuffer;
 	// remainingBufferSize = recieveBuffer max size - size(receiveBuffer)
 	private LinkedBlockingQueue<DatagramPacket> receiveBuffer;
-    private Queue<Byte> receiveRemainder;
+    private Queue<Byte> receiveRemainder; //used in receive
     // remainingBufferSize = recieveBuffer max size - size(receiveBuffer)
     private LinkedBlockingQueue<DatagramPacket> ackBuffer;
 	private int lastByteSent; // LastByteSent - LastByteAcked <= rwnd
 	private int lastByteAcked;
 	// rwnd is sent in the header and calculated in send
-    public int remainingMessageSize; //>0 if in the middle of a message, used in recieve
+    public int remainingMessageSize; //>0 if in the middle of a message, used in receive
+    public int remoteReceiveWindowRemaining; //initialized in conect
+
 	/*
 	 * CONSTRUCTOR
 	 */
@@ -67,6 +69,7 @@ public class Connection {
         ackBuffer = new LinkedBlockingQueue<DatagramPacket>();
 
         remainingMessageSize = 0;
+        remoteReceiveWindowRemaining = 0;
 	}
 	
 	/*
@@ -81,12 +84,12 @@ public class Connection {
 		return localPort;
 	}
 	
-	public int getMAX_WINDOW_SIZE() {
-		return MAX_WINDOW_SIZE;
+	public int getMaxLocalWindowSize() {
+		return maxLocalWindowSize;
 	}
 
-	public void setWINDOW_SIZE(int size) {
-		MAX_WINDOW_SIZE = size * MAX_RTP_PACKET_SIZE;
+	public void setMaxLocalWindowSize(int size) {
+		maxLocalWindowSize = size;
 	}
 	
 	public LinkedBlockingQueue<DatagramPacket> getReceiveBuffer() {
@@ -147,22 +150,13 @@ public class Connection {
 	public boolean isDuplicateAckNum(int ackNum) {
 		return receivedAckNumbers.contains(ackNum);
 	}
-	
-	
-	/**
-	 * Sets the window size. Do this during rtp.connect().
-	 * @param size
-	 */
-	public void setWindowSize(int size) {
-		this.setWINDOW_SIZE(size);
-	}
-	
+
 	/**
 	 * Use to get the value for an ACK header
 	 * @return number of bytes remaining in receive buffer
 	 */
 	public int getRemainingReceiveBufferSize() {
-		return MAX_WINDOW_SIZE * MAX_RTP_PACKET_SIZE - receiveBuffer.size();
+		return maxLocalWindowSize * MAX_RTP_PACKET_SIZE - receiveBuffer.size();
 	}
 	
 	/**

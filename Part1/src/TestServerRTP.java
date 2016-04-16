@@ -31,7 +31,7 @@ public class TestServerRTP {
          * Creates a new thread for each connection to send packages to said connection
          */
         while(true) {
-            Connection c = rtp.accept();
+            Connection c = rtp.accept(1);
             (new ConnectionThread(c)).start();
             // ah: can't close the client socket from the server
             //clntSock.close(); // Close the socket. We are done with this client!
@@ -74,6 +74,14 @@ public class TestServerRTP {
             System.out.println();
             System.out.println();
 
+            System.out.println("testServerRTP: testing 10000 byte data");
+            data = rtp.receive(10000,connection);
+            System.out.print("testServerRTP: expected: 10000 actual: " + (data.length));
+            //System.out.print("testServerRTP: expected: 0,1,2,3,4 ....: " + bytesToString(data));
+            System.out.println();
+            System.out.println();
+
+
             System.out.println("testServerRTP: Sending data: 5,6,7,8");
             byte[] test = {5,6,7,8};
             rtp.send(test,connection);
@@ -87,6 +95,14 @@ public class TestServerRTP {
             out.append(b.toString() + ",");
         }
         return out.toString();
+    }
+
+    private static byte[] createLargeMessage(){
+        byte[] large = new byte[10000];
+        for(int i = 0; i<10000; i++){
+            large[i] = (byte)(i%256);
+        }
+        return large;
     }
 
     /**

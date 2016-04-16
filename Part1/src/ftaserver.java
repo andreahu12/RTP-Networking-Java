@@ -22,7 +22,7 @@ public class ftaserver {
          * Creates a new thread for each connection to send packages to said connection
          */
         while(true) {
-			Connection c = rtp.accept();
+			Connection c = rtp.accept(1);
 //            (new ConnectionThread(c)).start(); // TODO: make sure this works
 			// ah: can't close the client socket from the server
 	        //clntSock.close(); // Close the socket. We are done with this client!

@@ -27,11 +27,11 @@ public class TestClientRTP {
         // Create socket that is connected to server on specified port
         InetAddress serverIP = InetAddress.getByName(server);
         System.out.println("TestClientRTP: parsed server ip: "+serverIP);
-        int windowSizeInBytes = 1;
+        int windowSize = 1;
 
         Connection c = null;
         try {
-            c = rtp.connect(serverIP, servPort, windowSizeInBytes);
+            c = rtp.connect(serverIP, servPort, windowSize);
 
             byte[] test = {1,2,3,4};
             System.out.println("TestClientRTP: Sending data: 1,2,3,4");
@@ -42,8 +42,13 @@ public class TestClientRTP {
             rtp.send(test,c);
             System.out.println("TestClientRTP: Data sent");
 
+            System.out.println("TestClientRTP: Sending large 10000 byte data");
+            test = createLargeMessage();
+            rtp.send(test,c);
+            System.out.println("TestClientRTP: Data sent");
+
             System.out.println("TestClientRTP: looking for 4 bytes of data");
-            Byte[] data = rtp.receive(4,c);
+            byte[] data = rtp.receive(4,c);
 
             System.out.print("TestClientRTP: read bytes: ");
             for (Byte b:data) {
@@ -56,10 +61,13 @@ public class TestClientRTP {
         }
     }
 
-	/*
-	 * STRING PARSING HELPER METHODS
-	 */
-
+    private static byte[] createLargeMessage(){
+        byte[] large = new byte[10000];
+        for(int i = 0; i<10000; i++){
+            large[i] = (byte)(i%256);
+        }
+        return large;
+    }
     /**
      * Separates the server number and the port number from the format
      * server_number:port_number

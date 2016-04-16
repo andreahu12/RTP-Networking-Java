@@ -49,12 +49,12 @@ public class rtp {
 	 * Makes a connection object on client side. <br>
 	 * Assigns window size to the connection.
      *
-	 * @param windowSizeInBytes initial window size
+	 * @param windowSize initial window size in packets
 	 * @return whether or not the connection attempt succeeded
 	 * @throws Exception 
 	 */
 	@SuppressWarnings("finally")
-	public static Connection connect(InetAddress serverIP, int serverPort, int windowSizeInBytes) throws Exception {
+	public static Connection connect(InetAddress serverIP, int serverPort, int windowSize) throws Exception {
 		System.out.println("\n----------------- Connect --------------------");
 		socket = new DatagramSocket();
 
@@ -80,8 +80,7 @@ public class rtp {
             (new MultiplexData()).start();
 
 			Connection c = createConnection(socket.getLocalAddress(), socket.getLocalPort(), serverIP, serverPort);
-			c.setWindowSize(windowSizeInBytes);
-
+            c.setMaxLocalWindowSize(windowSize);
 			System.out.println("rtp.connect: 1. Created a connection object in hashmap");
 			
 			/*
@@ -115,7 +114,8 @@ public class rtp {
 					 * HANDSHAKE 3: CLIENT --> SERVER
 					 */
 					// Create ACKbit = 1, ACKnum = y+1 packet
-					DatagramPacket ack = makeHandshakeAckPacket(serverIP, serverPort);
+                    c.remoteReceiveWindowRemaining = receivePacketRTP.getRemainingBufferSize();
+					DatagramPacket ack = makeHandshakeAckPacket(serverIP, serverPort, windowSize);
 					System.out.println("rtp.connect: 6. Made ACK");
 					socket.send(ack);
 					System.out.println("rtp.connect: 7. Sent ACK");
@@ -151,11 +151,12 @@ public class rtp {
 	 * Creates an ACK packet for the 3rd handshake
 	 * @param serverAddress ip of server
 	 * @param serverPort listening port of server
+     * @param windowSize remaining Window Size
 	 * @return handshake ack packet
 	 */
-	private static DatagramPacket makeHandshakeAckPacket(
-			InetAddress serverAddress, int serverPort) {
+	private static DatagramPacket makeHandshakeAckPacket(InetAddress serverAddress, int serverPort, int windowSize) {
 		Packet packet3 = new Packet(false, true, false, 1, 1, null);
+        packet3.setRemainingBufferSize(windowSize);
 		byte[] packet3bytes = packet3.packetize();
         return new DatagramPacket(packet3bytes, packet3bytes.length,
                 serverAddress, serverPort);
@@ -163,14 +164,15 @@ public class rtp {
 	
 	/**
 	 * Creates a SynAck packet for step 2 of the 3-way handshake
-	 * @param clientIP
-	 * @param clientPort
+	 * @param clientIP ip of client
+	 * @param clientPort port of client
+     * @param remBufferSize remaining window size in packets
 	 * @return
 	 */
-	private static DatagramPacket makeSynAckPacket(InetAddress clientIP, int clientPort) {
+	private static DatagramPacket makeSynAckPacket(InetAddress clientIP, int clientPort, int remBufferSize) {
 		Packet packet2 = new Packet(false, true, true, 0, 1, null);
-		byte[] packet2bytes = packet2.packetize();
-
+		packet2.setRemainingBufferSize(remBufferSize);
+        byte[] packet2bytes = packet2.packetize();
         return new DatagramPacket(packet2bytes, packet2bytes.length, clientIP, clientPort);
 	}
 	
@@ -211,7 +213,7 @@ public class rtp {
      *
      * @return The connection with the client
 	 */
-	public static Connection accept() {
+	public static Connection accept(int remainingWindowSize) {
         if(!multiplexRunning) {
             (new MultiplexData()).start();
             multiplexRunning = true;
@@ -222,17 +224,19 @@ public class rtp {
     //        DatagramPacket receivePacket = new DatagramPacket(
     //                new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 
-//            Packet rtpReceivePacket = rtpBytesToPacket(synPacket.getData());
             InetAddress clientAddress = synPacket.getAddress();
             int clientPort = synPacket.getPort();
 
             //printRtpPacketFlags(rtpReceivePacket);
 
-            DatagramPacket SynAckPacket = makeSynAckPacket(clientAddress, clientPort);
+            DatagramPacket synAckPacket = makeSynAckPacket(clientAddress, clientPort, remainingWindowSize);
             Connection c = createConnection(socket.getLocalAddress(), socket.getLocalPort(), clientAddress, clientPort);
+            c.setMaxLocalWindowSize(remainingWindowSize);
 
-            socket.send(SynAckPacket);
-            c.getAckBuffer().take(); //blocks until it returns something
+            socket.send(synAckPacket);
+            DatagramPacket ack = c.getAckBuffer().take(); //blocks until it returns something
+            Packet rtpAck = rtpBytesToPacket(ack.getData());
+            c.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize();
             System.out.println("rtp.accept: received an ACK packet, printing list of connections");
             int j = 0;
             for(Connection i: connections.values()){
@@ -365,18 +369,20 @@ public class rtp {
         System.out.println("rtp.send: Starting send");
 		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data);
         int packetsToAckLeft = packetsToSend.size();
+        int packetsSentButNotAcked = 0;
+        int remainingPacketsToSend = packetsToSend.size();
 //        packetsToSend.size() > 0
 		while (packetsToAckLeft > 0) {
             //while there are packets left to ack
 
-            //send as many as you can according to flow control
-            int remainingWindowSize = packetsToSend.size();//connection.getLastByteAcked()-connection.getLastByteSent();
-            //TODO: fix this (its wrong, so i made it all) and init in connect
-
-            for(int i = 0; i<remainingWindowSize; i++){
+            //send as many bytes as you can according to flow control
+            //for(int i = 0; i<packetsToSend.size(); i++){
+            while(remainingPacketsToSend>0 && packetsSentButNotAcked<connection.remoteReceiveWindowRemaining){
                 DatagramPacket toSend = packetsToSend.remove();
                 toSend.setAddress(connection.getRemoteAddress());
                 toSend.setPort(connection.getRemotePort());
+                packetsSentButNotAcked++;
+                remainingPacketsToSend--;
                 try {
                     Packet tempDebug = rtpBytesToPacket(toSend.getData());
                     System.out.println("rtp.send: sending packet with seq: "+tempDebug.getSequenceNumber());
@@ -397,10 +403,8 @@ public class rtp {
                     if (rtpAck.getACK() && !connection.isDuplicateAckNum(rtpAck.getAckNumber())) {
                         packetsToAckLeft--;
                         // we received a valid ack
-                        connection.setLastByteAcked(rtpAck.getRemainingBufferSize()); //TODO:figure out with andrea
-//                            DatagramPacket nextPacket = packetsToSend.peek();
-//                            int nextPacketSize = rtpBytesToPacket(nextPacket.getData()).getPayloadSize();
-//                            canSendPacket = (remainingBufferSize >= nextPacketSize);
+                        packetsSentButNotAcked--;
+                        connection.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize();
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -474,7 +478,7 @@ public class rtp {
 	 * @param numBytesRequested the limit of the number of bytes recieve can read
 	 * @return number of bytes read
 	 */
-	public static Byte[] receive(int numBytesRequested, Connection c) {
+	public static byte[] receive(int numBytesRequested, Connection c) {
 		if (c == null) { // connection does not exist yet
 			System.out.println("rtp.receive: connection does not exist yet");
 			return null;
@@ -523,7 +527,7 @@ public class rtp {
             }
 
             //Step 3: read the the limiting factor number of bytes starting from the remainder buffer
-            Byte[] writeToBuffer = new Byte[leastDataReq]; //output
+            byte[] writeToBuffer = new byte[leastDataReq]; //output
             int index = 0; //the position of the write buffer we're at
             while(!receiveRemainder.isEmpty() && leastDataReq > 0) { //pulling from remainder buffer
                 writeToBuffer[index] = receiveRemainder.remove();
@@ -566,7 +570,7 @@ public class rtp {
 		int newAckNum = p.getSequenceNumber() + p.getPayloadSize();
 		int newSeqNum = p.getAckNumber();
 		Packet ack = new Packet(false, true, false, newSeqNum, newAckNum, null);
-		ack.setRemainingBufferSize(c.getRemainingReceiveBufferSize());
+		ack.setRemainingBufferSize(c.getMaxLocalWindowSize() - c.getReceiveBuffer().size());
 		byte[] ackBytes = ack.packetize();
 		DatagramPacket dpAck = new DatagramPacket(ackBytes, ackBytes.length, c.getRemoteAddress(), c.getRemotePort());
 		socket.send(dpAck);

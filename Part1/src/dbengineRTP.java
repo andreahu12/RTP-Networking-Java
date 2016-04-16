@@ -36,7 +36,7 @@ public class dbengineRTP {
          * Creates a new thread for each connection to send packages to said connection
          */
         while(true) {
-			Connection c = rtp.accept();
+			Connection c = rtp.accept(1);
             (new ConnectionThread(c)).start();
 			// ah: can't close the client socket from the server
 	        //clntSock.close(); // Close the socket. We are done with this client!
@@ -173,7 +173,7 @@ public class dbengineRTP {
         @Override
         public void run(){
             System.out.println("dbEngine: looking for 4 bytes of data");
-            Byte[] data = rtp.receive(40,connection);
+            byte[] data = rtp.receive(40,connection);
 
             System.out.print("dbEngine: read bytes: ");
             for (Byte b:data) {
