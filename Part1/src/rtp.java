@@ -479,9 +479,8 @@ public class rtp {
 	 * According to GBN, we need to resend everything starting at the last failed packet. <br>
 	 * This takes the orignal data, makes a queue of datagram packets, iterates through the queue,
 	 * pops all the successful packets until we get to the timed out packet. <br>
-	 * 
-	 * @param original
-	 * @param timedOutPacket
+	 *
+	 * @param timedOutPacket the packet that timed out
 	 * @return all the packets we need to resend
 	 */
 	private static Queue<DatagramPacket> getPacketsToResend(byte[] data, DatagramPacket timedOutPacket) {
@@ -584,6 +583,11 @@ public class rtp {
 
             //Step 1: if starting a new message, get the size put the rest of the packet into the remainder buffer
             if(c.remainingMessageSize == 0) { //remaining message size is 0, so we need to update it with the first packet
+                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
+                c.clearReceivedAckNum();
+                c.clearReceivedSeqNum();
+                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
+
                 //the remainder buffer has to be empty when this happens b/c of send assumptions
                 DatagramPacket packet = c.getReceiveBuffer().take();
                 sendAck(rtpBytesToPacket(packet.getData()), c);
@@ -600,23 +604,13 @@ public class rtp {
 //                        bb.order(ByteOrder.LITTLE_ENDIAN);
                 c.remainingMessageSize = (bb.getInt());
                 System.out.println("rtp.receive: new message of size: " + c.remainingMessageSize);
-                
-                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
-                c.clearReceivedAckNum();
-                c.clearReceivedSeqNum();
-                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
-                
+
                 //fill remainder buffer with rest of this message
                 for (int i = 4; i < rtpPacket.getPayloadSize(); i++) { //remainder in the payload
                     receiveRemainder.add(payload[i]);
                 }
             } else {
                 System.out.println("rtp.receive: finishing message of size: " + c.remainingMessageSize);
-                // TODO: THIS IS A HACK TO CLEAR THE NUMBERS EVER TIME RECEIVE IS CALLED
-                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
-                c.clearReceivedAckNum();
-                c.clearReceivedSeqNum();
-                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
             }
 
             //Step 2: check if the limiting factor is the parameter or the message size
