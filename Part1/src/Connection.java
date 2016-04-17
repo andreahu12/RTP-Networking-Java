@@ -28,8 +28,8 @@ public class Connection {
 
 	private static final int MAX_RTP_PACKET_SIZE = 1000;
 
-	private HashSet<Integer> receivedSequenceNumbers; // for checking for duplicates via seq num
-	private HashSet<Integer> receivedAckNumbers; // for checking for duplicates via ack num
+	private ConcurrentHashMap<Integer, String> receivedSequenceNumbers; // for checking for duplicates via seq num
+	private ConcurrentHashMap<Integer, String> receivedAckNumbers; // for checking for duplicates via ack num
 	
 	private InetAddress remoteAddress;
 	private int remotePort;
@@ -77,8 +77,8 @@ public class Connection {
 	 */
 	public Connection(InetAddress localIP, int localPort, InetAddress remoteIP, int remotePort) {
 		
-		receivedSequenceNumbers = new HashSet<Integer>();
-		receivedAckNumbers = new HashSet<Integer>();
+		receivedSequenceNumbers = new ConcurrentHashMap<Integer, String>();
+		receivedAckNumbers = new ConcurrentHashMap<Integer, String>();
 		
 		remoteAddress = remoteIP;
 		localAddress = localIP;
@@ -161,7 +161,7 @@ public class Connection {
 	 * @return whether we've already received this sequence number
 	 */
 	public boolean isDuplicateSeqNum(int sequenceNumber) {
-		return receivedSequenceNumbers.contains(sequenceNumber);
+		return receivedSequenceNumbers.containsKey(sequenceNumber);
 	}
 	
 	/**
@@ -169,7 +169,7 @@ public class Connection {
 	 * @param seqNum
 	 */
 	public void addToReceivedSeqNum(int seqNum) {
-		receivedSequenceNumbers.add(seqNum);
+		receivedSequenceNumbers.put(seqNum, new String(""));
 	}
 	
 	/**
@@ -177,16 +177,16 @@ public class Connection {
 	 * This should be called for every message in rtp.send().
 	 */
 	public void clearReceivedSeqNum() {
-		receivedSequenceNumbers = new HashSet<Integer>();
+		receivedSequenceNumbers = new ConcurrentHashMap<Integer, String>();
 	}
 	
 	/**
 	 * 
 	 * @param ackNum
-	 * @return whether we've already received this acknoweldgement
+	 * @return whether we've already received this acknowledgement
 	 */
 	public boolean isDuplicateAckNum(int ackNum) {
-		return receivedAckNumbers.contains(ackNum);
+		return receivedAckNumbers.containsKey(ackNum);
 	}
 	
 	/**
@@ -194,11 +194,11 @@ public class Connection {
 	 * @param ackNum
 	 */
 	public void addToReceivedAckNum(int ackNum) {
-		receivedAckNumbers.add(ackNum);
+		receivedAckNumbers.put(ackNum, new String(""));
 	}
 	
 	public void clearReceivedAckNum() {
-		receivedAckNumbers = new HashSet<Integer>();
+		receivedAckNumbers = new ConcurrentHashMap<Integer, String>();
 	}
 
 	/**
