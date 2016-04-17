@@ -416,7 +416,6 @@ public class rtp {
                 Long timeout = calculateTimeout();
                 int expectedAckNum = getExpectedAckNum(toSend);
                 connection.addTimeout(timeout, toSend, expectedAckNum);
-                Long currentTime = System.currentTimeMillis();
                 System.out.println("rtp.send: sending a new packet, so we added a timeout " + "("+ TIMEOUT +" ms)"+ " to the connection");
                 
                 packetsSentButNotAcked++;
