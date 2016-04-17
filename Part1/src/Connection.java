@@ -45,12 +45,12 @@ public class Connection {
     // remainingBufferSize = recieveBuffer max size - size(receiveBuffer)
     private LinkedBlockingQueue<DatagramPacket> ackBuffer;
 	private int lastByteSent; // LastByteSent - LastByteAcked <= rwnd
-	private int lastByteAcked;
+	private int lastByteAcked; //not really used with abotve
 	// rwnd is sent in the header and calculated in send
     public int remainingMessageSize; //>0 if in the middle of a message, used in receive
     public int remoteReceiveWindowRemaining; //initialized in conect
-    
-    
+
+    private int lastSeqReceived; //for out of order detection
     /*
      * For timeout checking. 
      * ASSUMPTION: timeouts are unique (no two packets are made at the same time)
@@ -92,6 +92,8 @@ public class Connection {
 
         remainingMessageSize = 0;
         remoteReceiveWindowRemaining = 0;
+
+        lastSeqReceived = -1;
 	}
 	
 	/*
@@ -363,5 +365,23 @@ public class Connection {
 
     public void setLastByteAcked(int lastByteAcked) {
         this.lastByteAcked = lastByteAcked;
+    }
+
+    /**
+     * called in MultiplexData.run
+     * @param rtpReceivePacket The packet to check for valid ordering
+     * @return whether the order is valid
+     */
+    public boolean isValidOrder(Packet rtpReceivePacket) {
+        return (lastSeqReceived == -1 || rtpReceivePacket.getSequenceNumber() == lastSeqReceived);
+    }
+
+    /**
+     * Updates the last sequence number
+     * called in rtp.receive and MultiplexData.run
+     * @param ackNo the ackNo of the most recent acked packet
+     */
+    public void updateOrdering(int ackNo) {
+        lastSeqReceived = ackNo;
     }
 }

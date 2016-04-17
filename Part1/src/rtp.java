@@ -440,7 +440,7 @@ public class rtp {
                     DatagramPacket ack = connection.getAckBuffer().take();
                     byte[] bytes = ack.getData();
                     Packet rtpAck = rtpBytesToPacket(bytes);
-                    System.out.println("rtp.send: got ack for: "+rtpAck.getAckNumber());
+                    System.out.println("rtp.send: got ack with ackNo : "+rtpAck.getAckNumber());
                     
                     if (rtpAck.getACK()) { // duplicate detection is done in MultiplexData
                         packetsToAckLeft--;
@@ -521,7 +521,7 @@ public class rtp {
         for (int i = front.length; i<data.length; i++){
             data[i] = origData[i-front.length];
         }
-
+        //---andrea---
 		int numFullPackets = Math.floorDiv(data.length, MAX_SEGMENT_SIZE);
 		int bytesRemaining = data.length % MAX_SEGMENT_SIZE;
 		
@@ -549,7 +549,7 @@ public class rtp {
 			payloadIndex++;
 		}
 		
-		int lastSeqNum = (numFullPackets + 1) * MAX_SEGMENT_SIZE;
+		int lastSeqNum = (numFullPackets) * MAX_SEGMENT_SIZE;
 		Packet packet = new Packet(false, false, false, lastSeqNum, 0, lastPayload);
 		byte[] packetBytes = packet.packetize();
 		
@@ -583,10 +583,6 @@ public class rtp {
 
             //Step 1: if starting a new message, get the size put the rest of the packet into the remainder buffer
             if(c.remainingMessageSize == 0) { //remaining message size is 0, so we need to update it with the first packet
-                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
-                c.clearReceivedAckNum();
-                c.clearReceivedSeqNum();
-                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
 
                 //the remainder buffer has to be empty when this happens b/c of send assumptions
                 DatagramPacket packet = c.getReceiveBuffer().take();
@@ -614,11 +610,13 @@ public class rtp {
             }
 
             //Step 2: check if the limiting factor is the parameter or the message size
+            boolean isEndingMessage = false;
             int leastDataReq = 0;
-            if (c.remainingMessageSize>=numBytesRequested){
+            if (c.remainingMessageSize>numBytesRequested){
                 leastDataReq = numBytesRequested;
             } else {
                 leastDataReq = c.remainingMessageSize;
+                isEndingMessage = true;
             }
 
             //Step 3: read the the limiting factor number of bytes starting from the remainder buffer
@@ -648,6 +646,13 @@ public class rtp {
                     }
                 }
             }
+            if (isEndingMessage) {
+                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
+                c.clearReceivedAckNum();
+                c.clearReceivedSeqNum();
+                c.updateOrdering(-1); //makes next received packet valid order
+                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
+            }
             return writeToBuffer;
         } catch (Exception e) {
             e.printStackTrace();
@@ -657,6 +662,8 @@ public class rtp {
 
 	/**
 	 * Creates and sends an ack using data from the packet passed in.
+     * Acks are only send for properly received data.
+     *
 	 * @param p packet with the data
 	 * @param c connection
 	 * @throws IOException
@@ -943,10 +950,16 @@ public class rtp {
                             	// make sure it's not a dup
                             	int seqNum = rtpReceivePacket.getSequenceNumber();
 
-                            	if (c.isValidDataPacket(rtpReceivePacket)) { 
-                            		System.out.println("MultiplexData.run: Got a new data packet with seq# "+seqNum);
-	                                c.getReceiveBuffer().put(receivePacket);
-	                                c.addToReceivedSeqNum(rtpReceivePacket.getSequenceNumber());
+                            	if (c.isValidDataPacket(rtpReceivePacket)) {
+                                    if(c.isValidOrder(rtpReceivePacket)) {
+                                        System.out.println("MultiplexData.run: Got a new data packet with seq# " + seqNum);
+                                        c.updateOrdering(seqNum + rtpReceivePacket.getPayloadSize()); //out of order detection
+                                        c.getReceiveBuffer().put(receivePacket);
+                                        c.addToReceivedSeqNum(rtpReceivePacket.getSequenceNumber());
+                                    } else {
+                                        System.out.println("MultiplexData.run: Got a out of order " +
+                                                "data packet. Ignore seq# "+seqNum);
+                                    }
                             	} else {
                             		System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
                             	}
