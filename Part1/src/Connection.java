@@ -56,7 +56,7 @@ public class Connection {
      * ASSUMPTION: timeouts are unique (no two packets are made at the same time)
      */
     
-    // set up in rtp.send(); lets us know which timeouts have been satisfied in rtp.receive()
+    // set up in rtp.send(); lets us know which timeouts have been satisfied in MultiplexData.run
     ConcurrentHashMap<Integer, Long> ackNumToTimeout = new ConcurrentHashMap<Integer, Long>();
     
     // set up rtp.send(); timeouts should be in chronological order, so index 0 is going to expire next
@@ -125,23 +125,6 @@ public class Connection {
     public LinkedBlockingQueue<DatagramPacket> getAckBuffer() {
         return ackBuffer;
     }
-
-    /**
-	 * Only adds non-duplicate ack payloads to the client buffer.
-	 * Does not acknowledge the packet.
-	 * Adds sequence number to hash map.
-	 * @param ackNum
-	 * @param payload
-	 */
-//	public void addToReceiveBuffer(int ackNum, byte[] payload) {
-//		if (!isDuplicateAckNum(ackNum)) {
-//			receivedAckNumbers.add(ackNum);
-//			int payloadSize = payload.length;
-//			for (int i = 0; i < payloadSize; i++) {
-//				receiveBuffer.add(payload[i]);
-//			}
-//		}
-//	}
 	
 	/**
 	 * Only adds non-duplicate sequence number payloads to the send buffer.
@@ -340,20 +323,6 @@ public class Connection {
 		// remove ACK-timeout from ackNumToTimeout
 		ackNumToTimeout.remove(ackNum);
 	}
-	
-	
-	/**
-	 * Returns the min(numBytes, length of the queue) bytes of the 
-	 * receiveBuffer in a byte array. 
-	 * 
-	 * This is done on a new array each time so there should not be any legacy data.
-	 * @param bytes
-	 * @return byte array of the entire result from server, or null if no result
-	 */
-
-//	public byte[] readReceiveResult(int bytes) {
-//		return readResult(bytes, receiveBuffer);
-//	}
 	
 
 	/**

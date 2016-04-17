@@ -85,7 +85,7 @@ public class Packet {
 		
 		// payload
 		if (this.payload != null) {
-			b.put(this.payload); // 8 // used to be 7
+			b.put(this.payload); // 8 
 		}
 		
 		return b.array();

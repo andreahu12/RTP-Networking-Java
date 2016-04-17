@@ -681,7 +681,6 @@ public class rtp {
 	 * @throws Exception 
 	 */
 	private static Packet rtpBytesToPacket(byte[] rtpResultBytes) {
-//		System.out.println("rtp.rtpBytesToPacket");
 		ByteBuffer buffer = ByteBuffer.wrap(rtpResultBytes);
 		
 		boolean FIN = (buffer.getInt() == 1); // if it equals 1, it is true
@@ -922,7 +921,7 @@ public class rtp {
                                 
                                 // make sure it's not a dup
                                 int ackNum = rtpReceivePacket.getAckNumber();
-                                // TODO
+
                                 if (c.isValidAck(rtpReceivePacket)) {
                                 	System.out.println("MultiplexData.run: Got a new ACK packet. ack# " + ackNum);
 	                                c.getAckBuffer().put(receivePacket);
@@ -943,7 +942,7 @@ public class rtp {
                             	
                             	// make sure it's not a dup
                             	int seqNum = rtpReceivePacket.getSequenceNumber();
-                            	// TODO
+
                             	if (c.isValidDataPacket(rtpReceivePacket)) { 
                             		System.out.println("MultiplexData.run: Got a new data packet with seq# "+seqNum);
 	                                c.getReceiveBuffer().put(receivePacket);
