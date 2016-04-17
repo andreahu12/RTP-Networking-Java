@@ -60,14 +60,13 @@ public class Connection {
     ConcurrentHashMap<Integer, Long> ackNumToTimeout = new ConcurrentHashMap<Integer, Long>();
     
     // set up rtp.send(); timeouts should be in chronological order, so index 0 is going to expire next
-//    ArrayList<Long> timeoutList = (ArrayList<Long>) Collections.synchronizedList(new ArrayList<Long>());
     ConcurrentLinkedQueue<Long> timeoutList = new ConcurrentLinkedQueue<Long>();
     
     // set up in rtp.send(); maps timeouts to DatagramPackets so that we can easily reset the packetsToSend (GBN)
     ConcurrentHashMap<Long, DatagramPacket> timeoutToDatagramPacket = new ConcurrentHashMap<Long, DatagramPacket>();
     
     
-    
+ 
     
 	/*
 	 * CONSTRUCTOR
@@ -166,12 +165,40 @@ public class Connection {
 	}
 	
 	/**
+	 * Adds the sequence number to the hash set for checking for duplicates later.
+	 * @param seqNum
+	 */
+	public void addToReceivedSeqNum(int seqNum) {
+		receivedSequenceNumbers.add(seqNum);
+	}
+	
+	/**
+	 * Clears the sequence numbers that have been received. <br>
+	 * This should be called for every message in rtp.send().
+	 */
+	public void clearReceivedSeqNum() {
+		receivedSequenceNumbers = new HashSet<Integer>();
+	}
+	
+	/**
 	 * 
 	 * @param ackNum
 	 * @return whether we've already received this acknoweldgement
 	 */
 	public boolean isDuplicateAckNum(int ackNum) {
 		return receivedAckNumbers.contains(ackNum);
+	}
+	
+	/**
+	 * Adds the acknowledgement number to the hash set for checking for duplicates later.
+	 * @param ackNum
+	 */
+	public void addToReceivedAckNum(int ackNum) {
+		receivedAckNumbers.add(ackNum);
+	}
+	
+	public void clearReceivedAckNum() {
+		receivedAckNumbers = new HashSet<Integer>();
 	}
 
 	/**

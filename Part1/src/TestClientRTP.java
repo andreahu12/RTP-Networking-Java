@@ -32,25 +32,31 @@ public class TestClientRTP {
         Connection c = null;
         try {
             c = rtp.connect(serverIP, servPort, windowSize);
-
+            System.out.println("***********************************************************");
+            System.out.println("TestClientRTP: testing receive when requesting more data than a message in a single packet");
             byte[] test = {1,2,3,4};
             System.out.println("TestClientRTP: Sending data: 1,2,3,4");
             rtp.send(test,c);
             System.out.println("TestClientRTP: Data sent");
-
+            System.out.println("***********************************************************");
+            System.out.println("TestClientRTP: testing receive when cutting packet");
             System.out.println("TestClientRTP: Sending data: 1,2,3,4");
             rtp.send(test,c);
             System.out.println("TestClientRTP: Data sent");
-
+            System.out.println("***********************************************************");
+            System.out.println("TestClientRTP: testing receive when emptying remainder");
             System.out.println("TestClientRTP: Sending large 10000 byte data");
             test = createLargeMessage();
             rtp.send(test,c);
             System.out.println("TestClientRTP: Data sent");
-
+            System.out.println("***********************************************************");
+            System.out.println("TestClientRTP: testing timeouts and duplicates");
             byte[] test2 = {0,1,2,3,4,5};
             System.out.println("TestClientRTP: Sending data: 0,1,2,3,4,5");
             rtp.send(test2,c);
             System.out.println("TestClientRTP: Data sent");
+            System.out.println();
+            System.out.println();
 
 //            System.out.println("TestClientRTP: looking for 4 bytes of data");
 //            byte[] data = rtp.receive(4,c);

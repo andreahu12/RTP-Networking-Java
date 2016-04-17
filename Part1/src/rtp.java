@@ -372,6 +372,13 @@ public class rtp {
         int packetsSentButNotAcked = 0;
         int remainingPacketsToSend = packetsToSend.size();
         
+        System.out.println("rtp.send: initial # of packets to send is " + packetsToSend.size());
+        
+        // for dups
+        System.out.println("rtp.send: new message; clear receivedAckNum and receivedSeqNum in the connection");
+        connection.clearReceivedAckNum();
+        connection.clearReceivedSeqNum();
+        
 		while (packetsToAckLeft > 0) {
             //while there are packets left to ack
 			
@@ -431,7 +438,8 @@ public class rtp {
                     byte[] bytes = ack.getData();
                     Packet rtpAck = rtpBytesToPacket(bytes);
                     System.out.println("rtp.send: got ack for: "+rtpAck.getAckNumber());
-                    if (rtpAck.getACK() && !connection.isDuplicateAckNum(rtpAck.getAckNumber())) {
+                    
+                    if (rtpAck.getACK()) { // duplicate detection is done in MultiplexData
                         packetsToAckLeft--;
                         // we received a valid ack
                         packetsSentButNotAcked--;
@@ -590,8 +598,10 @@ public class rtp {
                 c.remainingMessageSize = (bb.getInt());
                 System.out.println("rtp.receive: new message of size: " + c.remainingMessageSize);
                 
-                // TODO: dup check: new message has been made so we should clear the seq and ack hashmaps in connection
-
+                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
+                c.clearReceivedAckNum();
+                c.clearReceivedSeqNum();
+                
                 //fill remainder buffer with rest of this message
                 for (int i = 4; i < rtpPacket.getPayloadSize(); i++) { //remainder in the payload
                     receiveRemainder.add(payload[i]);
@@ -884,13 +894,22 @@ public class rtp {
                         Packet rtpReceivePacket = rtpBytesToPacket(receivePacket.getData());
                         InetAddress remoteAddress = receivePacket.getAddress();
                         int remotePort = receivePacket.getPort();
-//                        printRtpPacketFlags(rtpReceivePacket);
 
                         if (rtpReceivePacket.getACK()) { //if ack, put in corresponding ack buffer
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+                           
                             if (c != null) {
                                 System.out.println("MultiplexData.run: Got an ACK packet");
-                                c.getAckBuffer().put(receivePacket);
+                                
+                                // make sure it's not a dup
+                                int ackNum = rtpReceivePacket.getAckNumber();
+                                if (!c.isDuplicateAckNum(ackNum)) {
+                                	System.out.println("MultiplexData.run: Got a new ACK packet. ack# " + ackNum);
+	                                c.getAckBuffer().put(receivePacket);
+	                                c.addToReceivedAckNum(ackNum);
+                                } else {
+                                	System.out.println("MultiplexData.run: Got a dup ACK packet. Ignore ack# " + ackNum);
+                                }
                             }
 
                         } else if (rtpReceivePacket.getSYN()) { //if syn put in syn buffer
@@ -899,8 +918,18 @@ public class rtp {
                         } else { //data to put in corresponding recieve buffer
                             System.out.println("MultiplexData.run: Got a data packet");
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+                            
                             if (c != null) {
-                               c.getReceiveBuffer().put(receivePacket);
+                            	
+                            	// make sure it's not a dup
+                            	int seqNum = rtpReceivePacket.getSequenceNumber();
+                            	if (!c.isDuplicateSeqNum(seqNum)) {
+                            		System.out.println("MultiplexData.run: Got a new data packet with seq# "+seqNum);
+	                               c.getReceiveBuffer().put(receivePacket);
+	                               c.addToReceivedSeqNum(rtpReceivePacket.getSequenceNumber());
+                            	} else {
+                            		System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
+                            	}
                             }
                         }
                     }
