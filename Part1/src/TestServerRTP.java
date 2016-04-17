@@ -83,7 +83,7 @@ public class TestServerRTP {
             System.out.println();
             System.out.println("***********************************************************");
 
-            System.out.println("testServerRTP: testing timeouts");
+            System.out.println("testServerRTP: testing timeouts, dups, and checksum");
             try {
                 Thread.sleep(4000);
             } catch(InterruptedException ex) {

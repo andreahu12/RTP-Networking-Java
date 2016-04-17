@@ -20,7 +20,7 @@ public class rtp {
 		= new ConcurrentHashMap<String, Connection>(); // for demultiplexing
 	private static int RECEIVE_PACKET_BUFFER_SIZE = 2048; // arbitrary value
 	private static long TIMEOUT = 2000; // arbitrary milliseconds; will time out all packets if TIMEOUT = 1
-	private static final int MAX_SEGMENT_SIZE = 972; 
+	private static final int MAX_SEGMENT_SIZE = 968; //MAX_SEGMENT_SIZE = 972; 
 	private static DatagramSocket socket;
     private static boolean multiplexRunning = false;
 
@@ -157,6 +157,8 @@ public class rtp {
 	private static DatagramPacket makeHandshakeAckPacket(InetAddress serverAddress, int serverPort, int windowSize) {
 		Packet packet3 = new Packet(false, true, false, 1, 1, null);
         packet3.setRemainingBufferSize(windowSize);
+        // reassign checksum to account for remaining buffer size
+        packet3.setChecksum(packet3.calculateChecksum());
 		byte[] packet3bytes = packet3.packetize();
         return new DatagramPacket(packet3bytes, packet3bytes.length,
                 serverAddress, serverPort);
@@ -172,6 +174,8 @@ public class rtp {
 	private static DatagramPacket makeSynAckPacket(InetAddress clientIP, int clientPort, int remBufferSize) {
 		Packet packet2 = new Packet(false, true, true, 0, 1, null);
 		packet2.setRemainingBufferSize(remBufferSize);
+		// reassign checksum to account for remaining buffer size
+		packet2.setChecksum(packet2.calculateChecksum());
         byte[] packet2bytes = packet2.packetize();
         return new DatagramPacket(packet2bytes, packet2bytes.length, clientIP, clientPort);
 	}
@@ -662,6 +666,9 @@ public class rtp {
 		int newSeqNum = p.getAckNumber();
 		Packet ack = new Packet(false, true, false, newSeqNum, newAckNum, null);
 		ack.setRemainingBufferSize(c.getMaxLocalWindowSize() - c.getReceiveBuffer().size());
+		// reassigns checksum to account for the remaining buffer size
+		ack.setChecksum(ack.calculateChecksum());
+		
 		byte[] ackBytes = ack.packetize();
 		DatagramPacket dpAck = new DatagramPacket(ackBytes, ackBytes.length, c.getRemoteAddress(), c.getRemotePort());
 		socket.send(dpAck);
@@ -674,6 +681,7 @@ public class rtp {
 	 * @throws Exception 
 	 */
 	private static Packet rtpBytesToPacket(byte[] rtpResultBytes) {
+//		System.out.println("rtp.rtpBytesToPacket");
 		ByteBuffer buffer = ByteBuffer.wrap(rtpResultBytes);
 		
 		boolean FIN = (buffer.getInt() == 1); // if it equals 1, it is true
@@ -683,13 +691,15 @@ public class rtp {
 		int ackNum = buffer.getInt();
 		int remainingBufferSize = buffer.getInt();
 		int payloadSize = buffer.getInt();
+		int checksum = buffer.getInt(); // new
 		byte[] payload = new byte[payloadSize];
 		
 		for (int i = 0; i < payloadSize; i++) {
 			payload[i] = buffer.get();
 		}
 		
-		Packet result = new Packet(FIN, ACK, SYN, seqNum, ackNum, payload);
+		Packet result = new Packet(FIN, ACK, SYN, seqNum, ackNum, payload); // auto calculates checksum
+		result.setChecksum(checksum); // reassign the old value for error checking
 		
 		result.setRemainingBufferSize(remainingBufferSize);
 		return result;
@@ -700,6 +710,16 @@ public class rtp {
 	/*
 	 * PRIVATE METHODS
 	 */
+	
+	/**
+	 * This returns the checksum received in the packet-- not a recalculated version.
+	 * @param rtpPacket
+	 * @return checksum received
+	 */
+	private static int getChecksumFromRtpPacket(byte[] rtpPacket) {
+		Packet p = rtpBytesToPacket(rtpPacket);
+		return p.getChecksum();
+	}
 	
 	/**
 	 * Take the bytes representing an RTP packet, and return the value of the FIN flag
@@ -898,11 +918,12 @@ public class rtp {
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                            
                             if (c != null) {
-                                System.out.println("MultiplexData.run: Got an ACK packet");
+                                System.out.println("\nMultiplexData.run: Got an ACK packet");
                                 
                                 // make sure it's not a dup
                                 int ackNum = rtpReceivePacket.getAckNumber();
-                                if (!c.isDuplicateAckNum(ackNum)) {
+                                // TODO
+                                if (c.isValidAck(rtpReceivePacket)) {
                                 	System.out.println("MultiplexData.run: Got a new ACK packet. ack# " + ackNum);
 	                                c.getAckBuffer().put(receivePacket);
 	                                c.addToReceivedAckNum(ackNum);
@@ -911,21 +932,22 @@ public class rtp {
                                 }
                             }
 
-                        } else if (rtpReceivePacket.getSYN()) { //if syn put in syn buffer
-                            System.out.println("MultiplexData.run: Got a SYN packet");
+                        } else if (rtpReceivePacket.getSYN() && (rtpReceivePacket.getChecksum() == rtpReceivePacket.calculateChecksum())) { //if syn put in syn buffer
+                            System.out.println("\nMultiplexData.run: Got a SYN packet");
                             synQ.add(receivePacket);
                         } else { //data to put in corresponding recieve buffer
-                            System.out.println("MultiplexData.run: Got a data packet");
+                            System.out.println("\nMultiplexData.run: Got a data packet");
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                             
                             if (c != null) {
                             	
                             	// make sure it's not a dup
                             	int seqNum = rtpReceivePacket.getSequenceNumber();
-                            	if (!c.isDuplicateSeqNum(seqNum)) {
+                            	// TODO
+                            	if (c.isValidDataPacket(rtpReceivePacket)) { 
                             		System.out.println("MultiplexData.run: Got a new data packet with seq# "+seqNum);
-	                               c.getReceiveBuffer().put(receivePacket);
-	                               c.addToReceivedSeqNum(rtpReceivePacket.getSequenceNumber());
+	                                c.getReceiveBuffer().put(receivePacket);
+	                                c.addToReceivedSeqNum(rtpReceivePacket.getSequenceNumber());
                             	} else {
                             		System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
                             	}

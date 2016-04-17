@@ -1,4 +1,5 @@
 import java.nio.ByteBuffer;
+import java.util.zip.CRC32;
 
 /**
  * Packet class represents all the data in an RTP packet.
@@ -13,11 +14,11 @@ public class Packet {
 	private static final int MAX_RTP_PACKET_SIZE = 1000; // bytes
 	
 	/*
-	 * 7 fields x 4 bytes = 28 bytes in the RTP header
-	 * --> 1000 bytes - 28 bytes = 972 max segment size
+	 * 7 fields x 4 bytes = 28 bytes in the RTP header (+ 4 byte checksum)
+	 * --> 1000 bytes - 28 bytes (- 4 bytes) = 972 max segment size (-4 bytes) = 968 bytes
 	 */
 	
-	private static final int MAX_SEGMENT_SIZE = 972; // bytes
+	private static final int MAX_SEGMENT_SIZE = 968; //972; // bytes
 	
 	/*
 	 * HEADER
@@ -61,6 +62,7 @@ public class Packet {
 		// calculated header fields
 		this.payloadSize = getPayloadSize();
 		// remainingBufferSize should be window_size - buffer.size() calculated via connection
+		this.checksum = calculateChecksum();
 	}
 	
 	/**
@@ -78,18 +80,64 @@ public class Packet {
 		b.putInt(this.ackNumber); // 4
 		b.putInt(this.remainingBufferSize); // 5
 		b.putInt(this.payloadSize); // 6
+		b.putInt(this.checksum); // 7
+		
 		
 		// payload
 		if (this.payload != null) {
-			b.put(this.payload); // 7
+			b.put(this.payload); // 8 // used to be 7
 		}
 		
 		return b.array();
 	}
 	
 	/*
+	 * Checksum!
+	 */
+	
+	/**
+	 * Calculates the checksum based off of all packet fields minus the checksum field. <br>
+	 * This is called in the constructor and can be used to recalculate in RTP to compare to the checksum received.
+	 * @return checksum calculated
+	 */
+	public int calculateChecksum() {
+		CRC32 crc = new CRC32();
+		
+		// put all the fields except the checksum in a byte buffer
+		ByteBuffer b = ByteBuffer.allocate(MAX_RTP_PACKET_SIZE);
+		
+		// header
+		b.putInt((this.FIN == false) ? 0 : 1); // 0
+		b.putInt((this.ACK == false) ? 0 : 1); // 1
+		b.putInt((this.SYN == false) ? 0 : 1); // 2
+		b.putInt(this.sequenceNumber); // 3
+		b.putInt(this.ackNumber); // 4
+		b.putInt(this.remainingBufferSize); // 5
+		b.putInt(this.payloadSize); // 6
+		
+		
+		// payload
+		if (this.payload != null) {
+			b.put(this.payload); // 7
+		}
+		
+		
+		
+		byte[] packetMinusChecksum = b.array();
+		crc.update(packetMinusChecksum);
+		
+		int result = (int) crc.getValue();
+		return result;
+	}
+	
+	/*
 	 * Setter Methods
 	 */
+	
+	public void setChecksum(int value) {
+		this.checksum = value;
+	}
+	
 	public void setFIN(boolean value) {
 		this.FIN = value;
 	}
@@ -121,6 +169,10 @@ public class Packet {
 	/*
 	 * Getter Methods
 	 */
+	
+	public int getChecksum() {
+		return this.checksum;
+	}
 	
 	public boolean getFIN() {
 		return this.FIN;

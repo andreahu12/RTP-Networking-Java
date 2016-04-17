@@ -235,10 +235,24 @@ public class Connection {
 	 * and passes checksum.
 	 * @param p an ack packet
 	 * @return whether it is a valid ack packet
+	 * @throws Exception 
 	 */
-	public boolean isValidAck(Packet p) {
+	public boolean isValidAck(Packet p) throws Exception {
 		boolean passedChecksum = checksum(p);
 		boolean notDup = !isDuplicateAckNum(p.getAckNumber());
+		return passedChecksum && notDup;
+	}
+	
+	/**
+	 * Takes an rtp data packet and makes sure it's not a duplicate
+	 * and passes checksum.
+	 * @param p a data packet
+	 * @return whether it is a valid data packet
+	 * @throws Exception 
+	 */
+	public boolean isValidDataPacket(Packet p) throws Exception {
+		boolean passedChecksum = checksum(p);
+		boolean notDup = !isDuplicateSeqNum(p.getSequenceNumber());
 		return passedChecksum && notDup;
 	}
 	
@@ -247,10 +261,16 @@ public class Connection {
 	 * TODO: IMPLEMENT CHECKSUM
 	 * @param p
 	 * @return
+	 * @throws Exception 
 	 */
-	private boolean checksum(Packet p) {
-		// TODO Auto-generated method stub
-		return true;
+	private boolean checksum(Packet p) throws Exception {
+		int calculatedChecksum = p.calculateChecksum();
+		int receivedChecksum = p.getChecksum();
+		boolean result =  (calculatedChecksum == receivedChecksum);
+
+		System.out.println("connection.checksum: expected: " + receivedChecksum + " | actual: "+ calculatedChecksum);
+		
+		return result;
 	}
 	
 	/**
