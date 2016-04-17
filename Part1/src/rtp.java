@@ -604,6 +604,7 @@ public class rtp {
                 // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
                 c.clearReceivedAckNum();
                 c.clearReceivedSeqNum();
+                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
                 
                 //fill remainder buffer with rest of this message
                 for (int i = 4; i < rtpPacket.getPayloadSize(); i++) { //remainder in the payload
@@ -611,6 +612,11 @@ public class rtp {
                 }
             } else {
                 System.out.println("rtp.receive: finishing message of size: " + c.remainingMessageSize);
+                // TODO: THIS IS A HACK TO CLEAR THE NUMBERS EVER TIME RECEIVE IS CALLED
+                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
+                c.clearReceivedAckNum();
+                c.clearReceivedSeqNum();
+                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
             }
 
             //Step 2: check if the limiting factor is the parameter or the message size
