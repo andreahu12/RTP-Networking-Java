@@ -371,7 +371,7 @@ public class rtp {
 	 */
 	public static void send(byte[] data, Connection connection) {
         System.out.println("rtp.send: Starting send");
-		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data);
+		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data, connection);
         int packetsToAckLeft = packetsToSend.size();
         int packetsSentButNotAcked = 0;
         int remainingPacketsToSend = packetsToSend.size();
@@ -395,7 +395,7 @@ public class rtp {
 				System.out.println("rtp.send: packetsToAckLeft BEFORE reset is " + packetsToAckLeft);
 				
 				// go back n
-				packetsToSend = getPacketsToResend(data, timedOutPacket);
+				packetsToSend = getPacketsToResend(data, timedOutPacket, connection);
 				
 				// reset these values
 				packetsToAckLeft = packetsToSend.size();
@@ -459,6 +459,7 @@ public class rtp {
                 }
             }
 		}
+        connection.setLastSeqSent(connection.getLastSeqSent()+data.length+4); //+4 for the extra message size bytes
         System.out.println("rtp.send: Ending send");
 	}
 	
@@ -483,12 +484,12 @@ public class rtp {
 	 * @param timedOutPacket the packet that timed out
 	 * @return all the packets we need to resend
 	 */
-	private static Queue<DatagramPacket> getPacketsToResend(byte[] data, DatagramPacket timedOutPacket) {
-		Queue<DatagramPacket> q = convertStreamToPacketQueue(data);
+	private static Queue<DatagramPacket> getPacketsToResend(byte[] data, DatagramPacket timedOutPacket, Connection c) {
+		Queue<DatagramPacket> q = convertStreamToPacketQueue(data, c);
 		
 		Packet firstPacket = rtpBytesToPacket(q.peek().getData());
 		Packet rtpTimedOutPacket = rtpBytesToPacket(timedOutPacket.getData());
-		
+
 		while (firstPacket.getSequenceNumber() != rtpTimedOutPacket.getSequenceNumber()) {
 			q.poll(); // remove it from the q
 			firstPacket = rtpBytesToPacket(q.peek().getData());
@@ -510,7 +511,7 @@ public class rtp {
 	 * @param origData byte stream to convert
 	 * @return Queue of DatagramPackets
 	 */
-	private static Queue<DatagramPacket> convertStreamToPacketQueue(byte[] origData) {
+	private static Queue<DatagramPacket> convertStreamToPacketQueue(byte[] origData, Connection c) {
 		Queue<DatagramPacket> result = new LinkedList<DatagramPacket>();
         //4 bits in front to tell the size of the message
         byte[] front = ByteBuffer.allocate(4).putInt(origData.length).array();
@@ -533,7 +534,7 @@ public class rtp {
 				dataIndex++;
 			}
 			int seqNum = packetNum * MAX_SEGMENT_SIZE;
-			Packet packet = new Packet(false, false, false, seqNum, 0, payload);
+			Packet packet = new Packet(false, false, false, seqNum + c.getLastSeqSent(), 0, payload);
 			byte[] packetBytes = packet.packetize();
 			
 			DatagramPacket dp = new DatagramPacket(packetBytes, packetBytes.length);
@@ -550,12 +551,11 @@ public class rtp {
 		}
 		
 		int lastSeqNum = (numFullPackets) * MAX_SEGMENT_SIZE;
-		Packet packet = new Packet(false, false, false, lastSeqNum, 0, lastPayload);
+		Packet packet = new Packet(false, false, false, lastSeqNum + c.getLastSeqSent(), 0, lastPayload);
 		byte[] packetBytes = packet.packetize();
-		
+
 		DatagramPacket dp = new DatagramPacket(packetBytes, packetBytes.length);
 		result.add(dp);
-		
 		return result;
 	}
 	
@@ -646,13 +646,13 @@ public class rtp {
                     }
                 }
             }
-            if (isEndingMessage) {
-                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
-                c.clearReceivedAckNum();
-                c.clearReceivedSeqNum();
-                c.updateOrdering(-1); //makes next received packet valid order
-                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
-            }
+//            if (isEndingMessage) {
+//                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
+//                c.clearReceivedAckNum();
+//                c.clearReceivedSeqNum();
+//                c.updateOrdering(-1); //makes next received packet valid order
+//                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
+//            }
             return writeToBuffer;
         } catch (Exception e) {
             e.printStackTrace();
