@@ -19,3 +19,7 @@ Milestones
 
 	) Write FTA (by tue) - Andrea
 		
+Ask the TA:
+	What happens hen we run out of sequence numbers? (2g file?)
+	In connection establishment, should we time-out packets? What about using TCP's ETT?
+	Where to start ssthresh (half of recieve window, maybe)
