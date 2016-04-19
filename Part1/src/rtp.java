@@ -326,6 +326,7 @@ public class rtp {
      *
      * Sends a message. Finishes when the ack is received.
 	 * @param data Message to send
+     * @param connection connection to send data over
 	 */
 	public static void send(byte[] data, Connection connection) {
         System.out.println("rtp.send: Starting send");
@@ -551,6 +552,7 @@ public class rtp {
      *      into a remainder buffer for temporary storage. Data is pulled from here before the receive buffer
      *
 	 * @param numBytesRequested the limit of the number of bytes recieve can read
+     * @param c The connection to receive the data from
 	 * @return number of bytes read
 	 */
 	public static byte[] receive(int numBytesRequested, Connection c) {
@@ -877,6 +879,7 @@ public class rtp {
                                                 "data packet. Ignore seq# "+seqNum);
                                     }
                             	} else {
+                                    sendAck(rtpReceivePacket, c);
                             		System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
                             	}
                             }
