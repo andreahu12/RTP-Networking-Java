@@ -492,7 +492,11 @@ public class rtp {
                 }
             }
 		}
-        connection.setLastSeqSent(connection.getLastSeqSent()+data.length+4); //+4 for the extra message size bytes
+        if (connection.getLastSeqSent()+data.length+4 >= Integer.MAX_VALUE){
+            connection.setLastSeqSent((connection.getLastSeqSent() + data.length + 4)-Integer.MAX_VALUE);
+        } else {
+            connection.setLastSeqSent(connection.getLastSeqSent() + data.length + 4); //+4 for the extra message size bytes
+        }
         System.out.println("rtp.send: Ending send");
 	}
 	
