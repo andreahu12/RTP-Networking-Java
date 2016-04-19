@@ -56,24 +56,25 @@ public class TestServerRTP {
          */
         @Override
         public void run(){
-        	System.out.println("***********************************************************");
-            System.out.println("testServerRTP: testing receive when requesting more data than a message in a single packet");
-            byte[] data = rtp.receive(40,connection);
-            System.out.print("testServerRTP: expected: 1,2,3,4 actual: " + bytesToString(data));
-            System.out.println();
-            System.out.println();
-            System.out.println("***********************************************************");
-            System.out.println("testServerRTP: testing receive when cutting packet");
-            data = rtp.receive(3,connection);
-            System.out.print("testServerRTP: expected: 1,2,3 actual: " + bytesToString(data));
-            System.out.println();
-            System.out.println();
-            System.out.println("***********************************************************");
-            System.out.println("testServerRTP: testing receive when emptying remainder");
-            data = rtp.receive(3,connection);
-            System.out.print("testServerRTP: expected: 4 actual: " + bytesToString(data));
-            System.out.println();
-            System.out.println();
+            byte[] data;
+//        	System.out.println("***********************************************************");
+//            System.out.println("testServerRTP: testing receive when requesting more data than a message in a single packet");
+//            data = rtp.receive(40,connection);
+//            System.out.print("testServerRTP: expected: 1,2,3,4 actual: " + bytesToString(data));
+//            System.out.println();
+//            System.out.println();
+//            System.out.println("***********************************************************");
+//            System.out.println("testServerRTP: testing receive when cutting packet");
+//            data = rtp.receive(3,connection);
+//            System.out.print("testServerRTP: expected: 1,2,3 actual: " + bytesToString(data));
+//            System.out.println();
+//            System.out.println();
+//            System.out.println("***********************************************************");
+//            System.out.println("testServerRTP: testing receive when emptying remainder");
+//            data = rtp.receive(3,connection);
+//            System.out.print("testServerRTP: expected: 4 actual: " + bytesToString(data));
+//            System.out.println();
+//            System.out.println();
             System.out.println("***********************************************************");
             System.out.println("testServerRTP: testing 10000 byte data");
             data = rtp.receive(100000,connection);

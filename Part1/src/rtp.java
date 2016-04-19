@@ -114,7 +114,11 @@ public class rtp {
 					 * HANDSHAKE 3: CLIENT --> SERVER
 					 */
 					// Create ACKbit = 1, ACKnum = y+1 packet
-                    c.remoteReceiveWindowRemaining = receivePacketRTP.getRemainingBufferSize();
+                    c.remoteReceiveWindowRemaining = receivePacketRTP.getRemainingBufferSize(); //flwo control
+                    c.ssthresh = c.remoteReceiveWindowRemaining*3/4; //congestion control
+                    if(c.ssthresh < 2){
+                        c.ssthresh = 2;
+                    }
 					DatagramPacket ack = makeHandshakeAckPacket(serverIP, serverPort, windowSize);
 					System.out.println("rtp.connect: 6. Made ACK");
 					socket.send(ack);
@@ -240,7 +244,11 @@ public class rtp {
             socket.send(synAckPacket);
             DatagramPacket ack = c.getAckBuffer().take(); //blocks until it returns something
             Packet rtpAck = rtpBytesToPacket(ack.getData());
-            c.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize();
+            c.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize(); //flow ctr
+            c.ssthresh = c.remoteReceiveWindowRemaining*3/4; //congestion control
+            if(c.ssthresh < 2){
+                c.ssthresh = 2;
+            }
             System.out.println("rtp.accept: received an ACK packet, printing list of connections");
             int j = 0;
             for(Connection i: connections.values()){
@@ -339,7 +347,7 @@ public class rtp {
 	 */
 	public static void send(byte[] data, Connection connection) {
         System.out.println("rtp.send: Starting send");
-		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data);
+		Queue<DatagramPacket> packetsToSend = convertStreamToPacketQueue(data, connection);
         int packetsToAckLeft = packetsToSend.size();
         int packetsSentButNotAcked = 0;
         int remainingPacketsToSend = packetsToSend.size();
@@ -359,11 +367,18 @@ public class rtp {
 			if (timedOutPacket != null) { // a packet has timed out
 				System.out.println("\n-----------------------------------------");
 				System.out.println("rtp.send: ERROR - a packet has timed out!");
-				
 				System.out.println("rtp.send: packetsToAckLeft BEFORE reset is " + packetsToAckLeft);
-				
-				// go back n
-				packetsToSend = getPacketsToResend(data, timedOutPacket);
+				//congestion window update
+                int tempDebug = connection.congestionWindow;
+                connection.congestionWindow /= 2;
+                if (connection.congestionWindow <= 0)
+                    connection.congestionWindow = 1;
+                connection.isSlowStart = false;
+                System.out.println("rtp.send: lost packet, Updated congestion control from "+
+                        tempDebug+" to "+connection.congestionWindow);
+
+                // go back n
+				packetsToSend = getPacketsToResend(data, timedOutPacket, connection);
 				
 				// reset these values
 				packetsToAckLeft = packetsToSend.size();
@@ -378,8 +393,9 @@ public class rtp {
 			}
 
 
-            //send as many bytes as you can according to flow control
-            while(remainingPacketsToSend>0 && packetsSentButNotAcked<connection.remoteReceiveWindowRemaining){
+            //send as many bytes as you can according to flow control and congestion control
+            while(remainingPacketsToSend>0 && packetsSentButNotAcked<connection.remoteReceiveWindowRemaining &&
+                    packetsSentButNotAcked<connection.congestionWindow){
                 DatagramPacket toSend = packetsToSend.remove();
                 toSend.setAddress(connection.getRemoteAddress());
                 toSend.setPort(connection.getRemotePort());
@@ -410,12 +426,29 @@ public class rtp {
                     Packet rtpAck = rtpBytesToPacket(bytes);
                     System.out.println("rtp.send: got ack with ackNo : "+rtpAck.getAckNumber());
                     
-                    if (rtpAck.getACK()) { // duplicate detection is done in MultiplexData
+                    if (rtpAck.getACK()) { // we received a valid ack
+                        // duplicate detection is done in MultiplexData
                         packetsToAckLeft--;
-                        // we received a valid ack
+
+                        //flow control updates
                         packetsSentButNotAcked--;
                         connection.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize();
-                        
+
+                        //congestion control updates
+                        int tempDebug = connection.congestionWindow;
+                        if(connection.isSlowStart){
+                            if(connection.congestionWindow*2 >= connection.ssthresh){
+                                connection.congestionWindow = connection.ssthresh;
+                                connection.isSlowStart= false;
+                            } else {
+                                connection.congestionWindow *= 2;
+                            }
+                        } else {
+                            connection.congestionWindow++;
+                        }
+                        System.out.println("rtp.send: Got ack, updated congestion control from "+
+                                tempDebug+" to "+connection.congestionWindow);
+
                         // remove the timeout from the connection
                         System.out.println("rtp.send: received ack before timeout. need to remove timeout for ack# " 
                         		+ rtpAck.getAckNumber());
@@ -427,6 +460,11 @@ public class rtp {
                 }
             }
 		}
+        if (connection.getLastSeqSent()+data.length+4 >= Integer.MAX_VALUE){
+            connection.setLastSeqSent((connection.getLastSeqSent() + data.length + 4)-Integer.MAX_VALUE);
+        } else {
+            connection.setLastSeqSent(connection.getLastSeqSent() + data.length + 4); //+4 for the extra message size bytes
+        }
         System.out.println("rtp.send: Ending send");
 	}
 	
@@ -451,12 +489,12 @@ public class rtp {
 	 * @param timedOutPacket the packet that timed out
 	 * @return all the packets we need to resend
 	 */
-	private static Queue<DatagramPacket> getPacketsToResend(byte[] data, DatagramPacket timedOutPacket) {
-		Queue<DatagramPacket> q = convertStreamToPacketQueue(data);
+	private static Queue<DatagramPacket> getPacketsToResend(byte[] data, DatagramPacket timedOutPacket, Connection c) {
+		Queue<DatagramPacket> q = convertStreamToPacketQueue(data, c);
 		
 		Packet firstPacket = rtpBytesToPacket(q.peek().getData());
 		Packet rtpTimedOutPacket = rtpBytesToPacket(timedOutPacket.getData());
-		
+
 		while (firstPacket.getSequenceNumber() != rtpTimedOutPacket.getSequenceNumber()) {
 			q.poll(); // remove it from the q
 			firstPacket = rtpBytesToPacket(q.peek().getData());
@@ -478,7 +516,7 @@ public class rtp {
 	 * @param origData byte stream to convert
 	 * @return Queue of DatagramPackets
 	 */
-	private static Queue<DatagramPacket> convertStreamToPacketQueue(byte[] origData) {
+	private static Queue<DatagramPacket> convertStreamToPacketQueue(byte[] origData, Connection c) {
 		Queue<DatagramPacket> result = new LinkedList<DatagramPacket>();
         //4 bits in front to tell the size of the message
         byte[] front = ByteBuffer.allocate(4).putInt(origData.length).array();
@@ -501,7 +539,7 @@ public class rtp {
 				dataIndex++;
 			}
 			int seqNum = packetNum * MAX_SEGMENT_SIZE;
-			Packet packet = new Packet(false, false, false, seqNum, 0, payload);
+			Packet packet = new Packet(false, false, false, seqNum + c.getLastSeqSent(), 0, payload);
 			byte[] packetBytes = packet.packetize();
 			
 			DatagramPacket dp = new DatagramPacket(packetBytes, packetBytes.length);
@@ -518,12 +556,11 @@ public class rtp {
 		}
 		
 		int lastSeqNum = (numFullPackets) * MAX_SEGMENT_SIZE;
-		Packet packet = new Packet(false, false, false, lastSeqNum, 0, lastPayload);
+		Packet packet = new Packet(false, false, false, lastSeqNum + c.getLastSeqSent(), 0, lastPayload);
 		byte[] packetBytes = packet.packetize();
-		
+
 		DatagramPacket dp = new DatagramPacket(packetBytes, packetBytes.length);
 		result.add(dp);
-		
 		return result;
 	}
 	
@@ -615,13 +652,13 @@ public class rtp {
                     }
                 }
             }
-            if (isEndingMessage) {
-                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
-                c.clearReceivedAckNum();
-                c.clearReceivedSeqNum();
-                c.updateOrdering(-1); //makes next received packet valid order
-                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
-            }
+//            if (isEndingMessage) { removed with the seq no fix
+//                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
+//                c.clearReceivedAckNum();
+//                c.clearReceivedSeqNum();
+//                c.updateOrdering(-1); //makes next received packet valid order
+//                System.out.println("rtp.receive: cleared receivedAckNum and receivedSeqNum");
+//            }
             return writeToBuffer;
         } catch (Exception e) {
             e.printStackTrace();
