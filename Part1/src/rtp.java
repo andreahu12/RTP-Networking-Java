@@ -293,49 +293,7 @@ public class rtp {
 		fin.setAddress(destinationAddress);
 		fin.setPort(destinationPort);
 		socket.send(fin);
-		
-		System.out.println("\n----------- CLOSE ---------------");
-		printRtpPacketFlags(rtpBytesToPacket(fin.getData()));
-		System.out.println("---------------------------------\n");
-		
-		// WE ASSUME HERE THAT NO PACKETS ARE LOST, 
-		// SO WE DON'T BOTHER WITH ACTUALLY WAITING 2x IN THE TIMED WAIT
-//		DatagramPacket receivePacket = new DatagramPacket(
-//				new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
-		
-		// TODO: FIX ME!!!!
-		
-//		
-//		// TODO: MAKE THIS THREAD SAFE
-		DatagramPacket receivePacket = c.getReceiveBuffer().take();
-//		
-		
-		// wait to receive the fin packet from the server
-		byte[] rtpPacket = null;
-		boolean receivedValidPacket = false;
-		while (!receivedValidPacket) {
-			System.out.println("rtp.close: receivePacket = " + receivePacket);
-			if (receivePacket != null) {
-				rtpPacket = receivePacket.getData();
-				
-				printRtpPacketFlags(rtpBytesToPacket(rtpPacket));
-				
-				int finSeqNumPlusOne = 2;
-				boolean receivedAnAck = getAckFromRtpPacket(rtpPacket);
-				boolean hasCorrectSeqNum = (getAckNumFromRtpPacket(rtpPacket) == finSeqNumPlusOne);
-				
-				System.out.println("rtp.close: receivedAnAck = "+receivedAnAck);
-				System.out.println("rtp.close: hasCorrectSeqNum = "+hasCorrectSeqNum);
-				
-				if (receivedAnAck && hasCorrectSeqNum) {
-					receivedValidPacket = true;
-				} else {
-					// TODO: MAKE THIS THREAD SAFE
-					socket.receive(receivePacket);
-				}
-			}
-		}
-
+		System.out.println("rtp.close");
 	}
 	
 	/**
@@ -921,6 +879,7 @@ public class rtp {
         public void run(){
         	boolean connectionOpen = true;
             while(connectionOpen){
+            	System.out.println("hello world");
                 DatagramPacket receivePacket = new DatagramPacket(
                         new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 
