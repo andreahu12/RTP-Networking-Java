@@ -114,7 +114,11 @@ public class rtp {
 					 * HANDSHAKE 3: CLIENT --> SERVER
 					 */
 					// Create ACKbit = 1, ACKnum = y+1 packet
-                    c.remoteReceiveWindowRemaining = receivePacketRTP.getRemainingBufferSize();
+                    c.remoteReceiveWindowRemaining = receivePacketRTP.getRemainingBufferSize(); //flwo control
+                    c.ssthresh = c.remoteReceiveWindowRemaining*3/4; //congestion control
+                    if(c.ssthresh < 2){
+                        c.ssthresh = 2;
+                    }
 					DatagramPacket ack = makeHandshakeAckPacket(serverIP, serverPort, windowSize);
 					System.out.println("rtp.connect: 6. Made ACK");
 					socket.send(ack);
@@ -240,7 +244,11 @@ public class rtp {
             socket.send(synAckPacket);
             DatagramPacket ack = c.getAckBuffer().take(); //blocks until it returns something
             Packet rtpAck = rtpBytesToPacket(ack.getData());
-            c.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize();
+            c.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize(); //flow ctr
+            c.ssthresh = c.remoteReceiveWindowRemaining*3/4; //congestion control
+            if(c.ssthresh < 2){
+                c.ssthresh = 2;
+            }
             System.out.println("rtp.accept: received an ACK packet, printing list of connections");
             int j = 0;
             for(Connection i: connections.values()){
@@ -391,10 +399,17 @@ public class rtp {
 			if (timedOutPacket != null) { // a packet has timed out
 				System.out.println("\n-----------------------------------------");
 				System.out.println("rtp.send: ERROR - a packet has timed out!");
-				
 				System.out.println("rtp.send: packetsToAckLeft BEFORE reset is " + packetsToAckLeft);
-				
-				// go back n
+				//congestion window update
+                int tempDebug = connection.congestionWindow;
+                connection.congestionWindow /= 2;
+                if (connection.congestionWindow <= 0)
+                    connection.congestionWindow = 1;
+                connection.isSlowStart = false;
+                System.out.println("rtp.send: lost packet, Updated congestion control from "+
+                        tempDebug+" to "+connection.congestionWindow);
+
+                // go back n
 				packetsToSend = getPacketsToResend(data, timedOutPacket, connection);
 				
 				// reset these values
@@ -410,8 +425,9 @@ public class rtp {
 			}
 
 
-            //send as many bytes as you can according to flow control
-            while(remainingPacketsToSend>0 && packetsSentButNotAcked<connection.remoteReceiveWindowRemaining){
+            //send as many bytes as you can according to flow control and congestion control
+            while(remainingPacketsToSend>0 && packetsSentButNotAcked<connection.remoteReceiveWindowRemaining &&
+                    packetsSentButNotAcked<connection.congestionWindow){
                 DatagramPacket toSend = packetsToSend.remove();
                 toSend.setAddress(connection.getRemoteAddress());
                 toSend.setPort(connection.getRemotePort());
@@ -442,12 +458,29 @@ public class rtp {
                     Packet rtpAck = rtpBytesToPacket(bytes);
                     System.out.println("rtp.send: got ack with ackNo : "+rtpAck.getAckNumber());
                     
-                    if (rtpAck.getACK()) { // duplicate detection is done in MultiplexData
+                    if (rtpAck.getACK()) { // we received a valid ack
+                        // duplicate detection is done in MultiplexData
                         packetsToAckLeft--;
-                        // we received a valid ack
+
+                        //flow control updates
                         packetsSentButNotAcked--;
                         connection.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize();
-                        
+
+                        //congestion control updates
+                        int tempDebug = connection.congestionWindow;
+                        if(connection.isSlowStart){
+                            if(connection.congestionWindow*2 >= connection.ssthresh){
+                                connection.congestionWindow = connection.ssthresh;
+                                connection.isSlowStart= false;
+                            } else {
+                                connection.congestionWindow *= 2;
+                            }
+                        } else {
+                            connection.congestionWindow++;
+                        }
+                        System.out.println("rtp.send: Got ack, updated congestion control from "+
+                                tempDebug+" to "+connection.congestionWindow);
+
                         // remove the timeout from the connection
                         System.out.println("rtp.send: received ack before timeout. need to remove timeout for ack# " 
                         		+ rtpAck.getAckNumber());
@@ -646,7 +679,7 @@ public class rtp {
                     }
                 }
             }
-//            if (isEndingMessage) {
+//            if (isEndingMessage) { removed with the seq no fix
 //                // dup check: new message has been made so we should clear the seq and ack hashmaps in connection
 //                c.clearReceivedAckNum();
 //                c.clearReceivedSeqNum();

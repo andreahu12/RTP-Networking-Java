@@ -52,6 +52,12 @@ public class Connection {
 
     private int lastSeqReceived; //for out of order detection
     private int lastSeqSent; //for creating seq nums
+
+    //congestion control variables
+    public boolean isSlowStart;
+    public int congestionWindow;
+    public int ssthresh;
+
     /*
      * For timeout checking. 
      * ASSUMPTION: timeouts are unique (no two packets are made at the same time)
@@ -96,6 +102,10 @@ public class Connection {
 
         lastSeqReceived = -1;
         lastSeqSent = 0;
+
+        isSlowStart = true;
+        congestionWindow = 1;
+        ssthresh = 1;
 	}
 	
 	/*
