@@ -555,7 +555,7 @@ public class rtp {
      * @param c The connection to receive the data from
 	 * @return number of bytes read
 	 */
-	public static byte[] receive(int numBytesRequested, Connection c) {
+        public static byte[] receive(int numBytesRequested, Connection c) {
 		if (c == null) { // connection does not exist yet
 			System.out.println("rtp.receive: connection does not exist yet");
 			return null;

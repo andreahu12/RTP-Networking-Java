@@ -27,7 +27,7 @@ public class TestClientRTP {
         // Create socket that is connected to server on specified port
         InetAddress serverIP = InetAddress.getByName(server);
         System.out.println("TestClientRTP: parsed server ip: "+serverIP);
-        int windowSize = 1;
+        int windowSize = 10;
 
         Connection c = null;
         try {
@@ -54,7 +54,7 @@ public class TestClientRTP {
             System.out.println("TestClientRTP: testing timeouts and duplicates");
             byte[] test2 = {0,1,2,3,4,5};
             System.out.println("TestClientRTP: Sending data: 0,1,2,3,4,5");
-            rtp.send(test2,c);
+            rtp.send(test,c);
             System.out.println("TestClientRTP: Data sent");
             System.out.println();
             System.out.println();

@@ -31,7 +31,7 @@ public class TestServerRTP {
          * Creates a new thread for each connection to send packages to said connection
          */
         while(true) {
-            Connection c = rtp.accept(3);
+            Connection c = rtp.accept(10);
             (new ConnectionThread(c)).start();
             // ah: can't close the client socket from the server
             //clntSock.close(); // Close the socket. We are done with this client!
@@ -85,13 +85,15 @@ public class TestServerRTP {
             System.out.println("***********************************************************");
 
             System.out.println("testServerRTP: testing timeouts, dups, and checksum");
+            data = rtp.receive(50,connection);
             try {
                 Thread.sleep(4000);
             } catch(InterruptedException ex) {
                 Thread.currentThread().interrupt();
             }
-            data = rtp.receive(1000,connection);
-            System.out.println("testServerRTP: expected: 0,1,2,3,4,5 | actual: " + bytesToString(data));
+            data = rtp.receive(100000,connection);
+            System.out.println("testServerRTP: expected: 9950 actual: " + (data.length));
+            //System.out.println("testServerRTP: expected: 50,51,52,.. | actual: " + bytesToString(data));
 	        System.out.println();
 	        System.out.println();
 
