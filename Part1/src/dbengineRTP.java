@@ -202,7 +202,7 @@ public class dbengineRTP {
         @Override
         public void run(){
 
-            int recvMsgSize = 0; //ByteBuffer.wrap(rtp.receive(4, connection)).getInt(); // Size of received message
+            int recvMsgSize = ByteBuffer.wrap(rtp.receive(4, connection)).getInt(); // Size of received message
             
             byte[] byteBuffer = new byte[BUFSIZE]; // Receive buffer
 			System.out.println("dbengineRTP: Handling client at " + connection.getRemoteAddress() +
@@ -255,8 +255,13 @@ public class dbengineRTP {
 
 			String resultString = resultBuilder.toString();
 			byte[] resultBuffer = resultString.getBytes();
-
-			rtp.send(resultBuffer, connection);
+			// TODO: add the size
+			
+			ByteBuffer bb = ByteBuffer.allocate(4 + resultBuffer.length);
+			bb.putInt(resultBuffer.length);
+			bb.put(resultBuffer);
+			
+			rtp.send(bb.array(), connection);
 			System.out.println("dbengineRTP sent: " + new String(resultBuffer));
 
         }

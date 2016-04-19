@@ -42,7 +42,7 @@ public class dbclientRTP {
 		String query = new StringBuilder(args[1] + ":" + attributeList).toString();
 
         // Convert input String to bytes using the default character encoding
-		byte[] byteBuffer = query.getBytes(Charset.forName("UTF-8"));
+		byte[] queryBytes = query.getBytes(Charset.forName("UTF-8"));
 		
 		// Create socket that is connected to server on specified port
 		InetAddress serverIP = InetAddress.getByName(server);
@@ -53,27 +53,27 @@ public class dbclientRTP {
 		try {
 			c = rtp.connect(serverIP, servPort, windowSizeInBytes);
 
-			rtp.send(byteBuffer, c);
+			int numBytesToSend = queryBytes.length;
+			ByteBuffer byteBuffer = ByteBuffer.allocate(4 + numBytesToSend);
+			byteBuffer.putInt(numBytesToSend);
+			byteBuffer.put(queryBytes);
 			
-			System.out.println("dbclientRTP sent: " + new String(byteBuffer));
+			rtp.send(byteBuffer.array(), c);
+			
+			System.out.println("dbclientRTP sent: " + new String(queryBytes));
 			
 			Queue<Byte> resultList = new LinkedList<Byte>();
 			
+			int totalBytes = ByteBuffer.wrap(rtp.receive(4, c)).getInt();
 			int bytesReceived = 0;
 			
-			byte[] recv = rtp.receive(500, c);
-			while (recv != null) {
+			while (bytesReceived < totalBytes) {
+				byte[] recv = rtp.receive(500, c);
 				for (byte b : recv) {
 					resultList.add(b);
 				}
 				bytesReceived = bytesReceived + recv.length;
 				System.out.println("dbclientRTP: bytesReceived = " + bytesReceived);
-				if (bytesReceived == 500) { // there might be more
-					recv = rtp.receive(500, c);
-					System.out.println("dbengineRTP: recv = " + new String(recv));
-				} else {
-					recv = null;
-				}
 			}
 			
 			byte[] result = new byte[resultList.size()];
