@@ -300,22 +300,32 @@ public class rtp {
 		
 		// WE ASSUME HERE THAT NO PACKETS ARE LOST, 
 		// SO WE DON'T BOTHER WITH ACTUALLY WAITING 2x IN THE TIMED WAIT
-		DatagramPacket receivePacket = new DatagramPacket(
-				new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
+//		DatagramPacket receivePacket = new DatagramPacket(
+//				new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 		
-		// TODO: MAKE THIS THREAD SAFE
-		socket.receive(receivePacket);
+		// TODO: FIX ME!!!!
+		
+//		
+//		// TODO: MAKE THIS THREAD SAFE
+		DatagramPacket receivePacket = c.getReceiveBuffer().take();
+//		
 		
 		// wait to receive the fin packet from the server
 		byte[] rtpPacket = null;
 		boolean receivedValidPacket = false;
 		while (!receivedValidPacket) {
+			System.out.println("rtp.close: receivePacket = " + receivePacket);
 			if (receivePacket != null) {
 				rtpPacket = receivePacket.getData();
+				
+				printRtpPacketFlags(rtpBytesToPacket(rtpPacket));
 				
 				int finSeqNumPlusOne = 2;
 				boolean receivedAnAck = getAckFromRtpPacket(rtpPacket);
 				boolean hasCorrectSeqNum = (getAckNumFromRtpPacket(rtpPacket) == finSeqNumPlusOne);
+				
+				System.out.println("rtp.close: receivedAnAck = "+receivedAnAck);
+				System.out.println("rtp.close: hasCorrectSeqNum = "+hasCorrectSeqNum);
 				
 				if (receivedAnAck && hasCorrectSeqNum) {
 					receivedValidPacket = true;
@@ -348,11 +358,11 @@ public class rtp {
 	 * @param toClientFromServer
 	 * @return a FIN acknowledgement packet
 	 */
-	private static DatagramPacket makeFinAckPacket(Packet packetToAck, boolean toClientFromServer) {
+	private static DatagramPacket makeFinAckPacket(Packet packetToAck) {
 		int ackNumber = packetToAck.getSequenceNumber() + 1;
 		int sequenceNumber = packetToAck.getAckNumber();
 
-		Packet ack = new Packet(false, false, false, sequenceNumber, ackNumber, null);
+		Packet ack = new Packet(true, true, false, sequenceNumber, ackNumber, null);
 		byte[] ackBytes = ack.packetize();
 		
 		DatagramPacket ackDP = new DatagramPacket(ackBytes, ackBytes.length);
@@ -578,6 +588,7 @@ public class rtp {
 			System.out.println("rtp.receive: no bytes to read");
 			return null;
 		}
+		
         try{
             Queue<Byte> receiveRemainder = c.getReceiveRemainder(); //reference to remainder buffer
 
@@ -908,7 +919,8 @@ public class rtp {
          */
         @Override
         public void run(){
-            while(true){
+        	boolean connectionOpen = true;
+            while(connectionOpen){
                 DatagramPacket receivePacket = new DatagramPacket(
                         new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 
@@ -920,7 +932,7 @@ public class rtp {
                         InetAddress remoteAddress = receivePacket.getAddress();
                         int remotePort = receivePacket.getPort();
 
-                        if (rtpReceivePacket.getACK()) { //if ack, put in corresponding ack buffer
+                        if (rtpReceivePacket.getACK() && !rtpReceivePacket.getFIN()) { //if ack, put in corresponding ack buffer
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                            
                             if (c != null) {
@@ -941,6 +953,29 @@ public class rtp {
                         } else if (rtpReceivePacket.getSYN() && (rtpReceivePacket.getChecksum() == rtpReceivePacket.calculateChecksum())) { //if syn put in syn buffer
                             System.out.println("\nMultiplexData.run: Got a SYN packet");
                             synQ.add(receivePacket);
+                            
+                        } else if (rtpReceivePacket.getFIN() && !rtpReceivePacket.getACK()) {
+                        	Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+                        	if (c != null) {
+                        		System.out.println("\nMultiplexData.run: Got a FIN packet");
+                        		DatagramPacket finack = makeFinAckPacket(rtpReceivePacket);
+                        		finack.setAddress(c.getRemoteAddress());
+                        		finack.setPort(c.getRemotePort());
+                        		socket.send(finack);
+                        		deleteConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+                        	}
+                        } else if (rtpReceivePacket.getFIN() && rtpReceivePacket.getACK()) {
+                        	// received a FINACK
+                        	
+                        	Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+                        	if (c != null) {
+	                        	System.out.println("\nMultiplexData.run: Got a FIN ACK packet");
+	                        	deleteConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+	                        	// TODO: KILL THIS PROCESS :(
+	                        	Thread.currentThread().interrupt();
+	                        	connectionOpen = false;
+	                        	return;
+                        	}
                         } else { //data to put in corresponding recieve buffer
                             System.out.println("\nMultiplexData.run: Got a data packet");
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
