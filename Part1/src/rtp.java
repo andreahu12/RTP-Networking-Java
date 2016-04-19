@@ -393,8 +393,8 @@ public class rtp {
                 remainingPacketsToSend--;
                 try {
                     Packet tempDebug = rtpBytesToPacket(toSend.getData());
-                    System.out.println("rtp.send: sending packet with seq: "+tempDebug.getSequenceNumber());
-					System.out.println("rtp.send: sending packet with and payload: "+tempDebug.getPayloadSize());
+                    System.out.println("rtp.send: sending packet with seq: "+tempDebug.getSequenceNumber()
+                            + "and payload: "+tempDebug.getPayloadSize());
                     socket.send(toSend);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -403,7 +403,6 @@ public class rtp {
 			while(!connection.getAckBuffer().isEmpty()){
                 // ack all of them
                 try {
-                    System.out.println("rtp.send: looking for acks: "+packetsToAckLeft);
                     DatagramPacket ack = connection.getAckBuffer().take();
                     byte[] bytes = ack.getData();
                     Packet rtpAck = rtpBytesToPacket(bytes);
@@ -429,14 +428,14 @@ public class rtp {
                         } else {
                             connection.congestionWindow++;
                         }
-                        System.out.println("rtp.send: Got ack, updated congestion control from "+
-                                tempDebug+" to "+connection.congestionWindow);
+//                        System.out.println("rtp.send: Got ack, updated congestion control from "+
+//                                tempDebug+" to "+connection.congestionWindow);
 
                         // remove the timeout from the connection
-                        System.out.println("rtp.send: received ack before timeout. need to remove timeout for ack# " 
-                        		+ rtpAck.getAckNumber());
+//                        System.out.println("rtp.send: received ack before timeout. need to remove timeout for ack# "
+//                        		+ rtpAck.getAckNumber());
                         connection.removeTimeout(rtpAck.getAckNumber());
-                        System.out.println("rtp.send: finished removing timeout for ack# " + rtpAck.getAckNumber());
+//                        System.out.println("rtp.send: finished removing timeout for ack# " + rtpAck.getAckNumber());
                     }
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -804,11 +803,10 @@ public class rtp {
         public void run(){
         	boolean connectionOpen = true;
             while(connectionOpen){
-            	System.out.println("hello world");
                 DatagramPacket receivePacket = new DatagramPacket(
                         new byte[RECEIVE_PACKET_BUFFER_SIZE], RECEIVE_PACKET_BUFFER_SIZE);
 
-                System.out.println("\nMultiplexData.run: Checking for packet...");
+//                System.out.println("\nMultiplexData.run: Checking for packet...");
                 try {
                     socket.receive(receivePacket);
                     if (receivePacket != null) {
@@ -820,28 +818,28 @@ public class rtp {
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                            
                             if (c != null) {
-                                System.out.println("\nMultiplexData.run: Got an ACK packet");
+//                                System.out.println("\nMultiplexData.run: Got an ACK packet");
                                 
                                 // make sure it's not a dup
                                 int ackNum = rtpReceivePacket.getAckNumber();
 
                                 if (c.isValidAck(rtpReceivePacket)) {
-                                	System.out.println("MultiplexData.run: Got a new ACK packet. ack# " + ackNum);
+//                                	System.out.println("MultiplexData.run: Got a new ACK packet. ack# " + ackNum);
 	                                c.getAckBuffer().put(receivePacket);
 	                                c.addToReceivedAckNum(ackNum);
                                 } else {
-                                	System.out.println("MultiplexData.run: Got a dup ACK packet. Ignore ack# " + ackNum);
+//                                	System.out.println("MultiplexData.run: Got a dup ACK packet. Ignore ack# " + ackNum);
                                 }
                             }
 
                         } else if (rtpReceivePacket.getSYN() && (rtpReceivePacket.getChecksum() == rtpReceivePacket.calculateChecksum())) { //if syn put in syn buffer
-                            System.out.println("\nMultiplexData.run: Got a SYN packet");
+//                            System.out.println("\nMultiplexData.run: Got a SYN packet");
                             synQ.add(receivePacket);
                             
                         } else if (rtpReceivePacket.getFIN() && !rtpReceivePacket.getACK()) {
                         	Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                         	if (c != null) {
-                        		System.out.println("\nMultiplexData.run: Got a FIN packet");
+//                        		System.out.println("\nMultiplexData.run: Got a FIN packet");
                         		DatagramPacket finack = makeFinAckPacket(rtpReceivePacket);
                         		finack.setAddress(c.getRemoteAddress());
                         		finack.setPort(c.getRemotePort());
@@ -853,14 +851,14 @@ public class rtp {
                         	
                         	Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                         	if (c != null) {
-	                        	System.out.println("\nMultiplexData.run: Got a FIN ACK packet");
+//	                        	System.out.println("\nMultiplexData.run: Got a FIN ACK packet");
 	                        	deleteConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
 	                        	Thread.currentThread().interrupt();
 	                        	connectionOpen = false;
 	                        	return;
                         	}
                         } else { //data to put in corresponding recieve buffer
-                            System.out.println("\nMultiplexData.run: Got a data packet");
+//                            System.out.println("\nMultiplexData.run: Got a data packet");
                             Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                             
                             if (c != null) {
@@ -868,19 +866,19 @@ public class rtp {
                             	// make sure it's not a dup
                             	int seqNum = rtpReceivePacket.getSequenceNumber();
 
-                            	if (c.isValidDataPacket(rtpReceivePacket)) {
-                                    if(c.isValidOrder(rtpReceivePacket)) {
-                                        System.out.println("MultiplexData.run: Got a new data packet with seq# " + seqNum);
+                            	if (c.isValidOrder(rtpReceivePacket)) {
+                                    if(c.isValidDataPacket(rtpReceivePacket)) {
+//                                        System.out.println("MultiplexData.run: Got a new data packet with seq# " + seqNum);
                                         c.updateOrdering(seqNum + rtpReceivePacket.getPayloadSize()); //out of order detection
                                         c.getReceiveBuffer().put(receivePacket);
                                         c.addToReceivedSeqNum(rtpReceivePacket.getSequenceNumber());
                                     } else {
-                                        System.out.println("MultiplexData.run: Got a out of order " +
-                                                "data packet. Ignore seq# "+seqNum);
+                                        sendAck(rtpReceivePacket, c);
+//                                        System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
                                     }
                             	} else {
-                                    sendAck(rtpReceivePacket, c);
-                            		System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
+//                                    System.out.println("MultiplexData.run: Got a out of order " +
+//                                            "data packet. Ignore seq# "+seqNum);
                             	}
                             }
                         }
