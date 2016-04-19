@@ -1,3 +1,13 @@
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.LinkedList;
+import java.util.Queue;
+
 
 
 
@@ -22,8 +32,8 @@ public class ftaserver {
          * Creates a new thread for each connection to send packages to said connection
          */
         while(true) {
-			Connection c = rtp.accept(1);
-//            (new ConnectionThread(c)).start(); // TODO: make sure this works
+			Connection c = rtp.accept(maxWindowSizeInBytes);
+            (new ConnectionThread(c)).start();
 			// ah: can't close the client socket from the server
 	        //clntSock.close(); // Close the socket. We are done with this client!
 		}
@@ -32,16 +42,148 @@ public class ftaserver {
 		
 	}
 	
+    /**
+     * The thread for any specific connection. starts when accept accepts a connection
+     * Do not implement until we have single thread working first
+     */
+    private static class ConnectionThread extends Thread{
+        Connection connection;
+        /**
+         * Constructor if we need it
+         */
+        ConnectionThread(Connection c) {
+            connection = c;
+        }
+
+        /**
+         * called by start()
+         */
+        @Override
+        public void run() {
+
+			System.out.println("ftaserver: Handling client at " + connection.getRemoteAddress() +
+                    " on Port " + connection.getRemotePort());
+
+			int totalBytesInMessage = ByteBuffer.wrap(rtp.receive(4, connection)).getInt();
+			int bytesReceived = 0;
+			
+			Queue<Byte> commandList = new LinkedList<Byte>();
+			
+			System.out.println("ftaserver: totalBytesInMessage = " + totalBytesInMessage);
+			
+			while (bytesReceived < totalBytesInMessage) {
+				byte[] recv = rtp.receive(500, connection);
+				for (byte b : recv) {
+					commandList.add(b);
+				}
+				bytesReceived = bytesReceived + recv.length;
+				System.out.println("ftaserver: bytesReceived = " + bytesReceived);
+			}
+			
+			byte[] commandBytes = new byte[commandList.size()];
+			for (int i = 0; i < commandBytes.length; i++) {
+				commandBytes[i] = commandList.poll();
+			}
+			
+			System.out.print("ftaserver: receiving...");
+			for (byte b : commandBytes) {
+				System.out.print(b+", ");
+			}
+			System.out.println();
+			
+			System.out.println("ftaserver received: " + new String(commandBytes));
+			
+			CommandReceived command = getCommand(commandBytes);
+			
+			if ((command == CommandReceived.GET) || (command == CommandReceived.GET_POST)) {
+				try {
+				// send file F
+				String f = getF(commandBytes);
+				
+				// get the bytes of file F
+				Path toF = Paths.get(f);
+				byte[] fInBytes = Files.readAllBytes(toF);
+				
+				// append the size in front
+				int numBytesInF = fInBytes.length;
+				ByteBuffer fBuffer = ByteBuffer.allocate(4 + numBytesInF);
+				fBuffer.putInt(numBytesInF);
+				fBuffer.put(fInBytes);
+				
+				// send it
+				rtp.send(fBuffer.array(), connection);
+				System.out.println("ftaserver: sent file F");
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			} 
+			
+			if (command == CommandReceived.GET_POST) {
+				// receive file G
+				
+				int numBytesInMessage = ByteBuffer.wrap(rtp.receive(4, connection)).getInt();
+				int numBytesReceived = 0;
+				
+				Queue<Byte> gList = new LinkedList<Byte>();
+				
+				while (numBytesReceived < numBytesInMessage) {
+					byte[] recv = rtp.receive(500, connection);
+					for (byte b : recv) {
+						gList.add(b);
+					}
+					numBytesReceived = numBytesReceived + recv.length;
+					System.out.println("ftaserver: numBytesReceived = " + numBytesReceived);
+				}
+				
+				// turn it into a byte array
+				byte[] gBytes = new byte[gList.size()];
+				for (int i = 0; i < gBytes.length; i++) {
+					gBytes[i] = gList.poll();
+				}
+				
+				System.out.println("ftaserver: received G in bytes");
+				
+				// save file G
+				String g = getG(commandBytes);
+				
+				// safe f in the local directory
+				try {
+					saveFile("output2.jpg", gBytes);
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+				System.out.println("ftaserver: saved file G");
+				
+			}
+        }
+    }
+    
+	/**
+	 * Saves a file in the local directory
+	 * @param filename
+	 * @param data
+	 * @throws IOException
+	 */
+	private static void saveFile(String filename, byte[] data) throws IOException {
+		// safe file in the local directory
+		FileOutputStream fos = new FileOutputStream(filename);
+		fos.write(data);
+		fos.close();
+	}
+	
+	
 	/**
 	 * Determines what kind of command the client sent based on the byte array received
 	 * @param message
 	 * @return
 	 */
 	private static CommandReceived getCommand(byte[] message) {
-		String messageStr = String.valueOf(message);
+		String messageStr = new String(message);
 		String[] args = messageStr.split(" ");
 		
 		String command = args[0]; // "get", "get-post", or "disconnect"
+		System.out.println("ftaserver.getCommand: " + command.toLowerCase());
 		if (command.toLowerCase().equals("get")) {
 			return CommandReceived.GET;
 		} else if (command.toLowerCase().equals("get-post")) {
@@ -49,7 +191,7 @@ public class ftaserver {
 		} else if (command.toLowerCase().equals("disconnect")) {
 			return CommandReceived.DISCONNECT;
 		} else {
-			System.out.println("ftaserver.getCommand: did not get a recognizable message-- " + messageStr);
+			System.out.println("ftaserver.getCommand: did not get a recognizable message-- " + new String(messageStr));
 			return null;
 		}
 	}
@@ -60,13 +202,13 @@ public class ftaserver {
 	 * @return
 	 */
 	private static String getF(byte[] message) {
-		String messageStr = String.valueOf(message);
+		String messageStr = new String(message);
 		String[] args = messageStr.split(" ");
 		
 		if (args.length > 1) {
 			return args[1];
 		} else {
-			System.out.println("ftaserver.getF: not enough arguments (got: " + args.length + ")");
+			System.out.println("ftaserver.getF: not enough arguments (got: " + args.length + ", " + messageStr + ")");
 			return null;
 		}
 	}
@@ -77,7 +219,7 @@ public class ftaserver {
 	 * @return
 	 */
 	private static String getG(byte[] message) {
-		String messageStr = String.valueOf(message);
+		String messageStr = new String(message);
 		String[] args = messageStr.split(" ");
 		
 		if (args.length == 3) {

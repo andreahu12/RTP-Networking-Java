@@ -19,7 +19,7 @@ public class rtp {
 	private static ConcurrentHashMap<String, Connection> connections
 		= new ConcurrentHashMap<String, Connection>(); // for demultiplexing
 	private static int RECEIVE_PACKET_BUFFER_SIZE = 2048; // arbitrary value
-	private static long TIMEOUT = 2000; // arbitrary milliseconds; will time out all packets if TIMEOUT = 1
+	private static long TIMEOUT = 4000; // arbitrary milliseconds; will time out all packets if TIMEOUT = 1
 	private static final int MAX_SEGMENT_SIZE = 968; //MAX_SEGMENT_SIZE = 972; 
 	private static DatagramSocket socket;
     private static boolean multiplexRunning = false;
