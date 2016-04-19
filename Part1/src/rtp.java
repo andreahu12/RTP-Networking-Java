@@ -349,7 +349,8 @@ public class rtp {
 			DatagramPacket timedOutPacket = connection.getTimedOutPacket();
 			if (timedOutPacket != null) { // a packet has timed out
 				System.out.println("\n-----------------------------------------");
-				System.out.println("rtp.send: ERROR - a packet has timed out!");
+				System.out.println("rtp.send: ERROR - a packet has timed out with seq# " + 
+				rtpBytesToPacket(timedOutPacket.getData()).getSequenceNumber());
 				System.out.println("rtp.send: packetsToAckLeft BEFORE reset is " + packetsToAckLeft);
 				//congestion window update
                 int tempDebug = connection.congestionWindow;
@@ -394,7 +395,7 @@ public class rtp {
                 try {
                     Packet tempDebug = rtpBytesToPacket(toSend.getData());
                     System.out.println("rtp.send: sending packet with seq: "+tempDebug.getSequenceNumber()
-                            + "and payload: "+tempDebug.getPayloadSize());
+                            + " and payload: "+tempDebug.getPayloadSize());
                     socket.send(toSend);
                 } catch (Exception e) {
                     e.printStackTrace();
@@ -572,8 +573,9 @@ public class rtp {
 
                 //the remainder buffer has to be empty when this happens b/c of send assumptions
                 DatagramPacket packet = c.getReceiveBuffer().take();
-                sendAck(rtpBytesToPacket(packet.getData()), c);
                 Packet rtpPacket = rtpBytesToPacket(packet.getData());
+                System.out.println("rtp.receive: got a packet with seq# " + rtpPacket.getSequenceNumber());
+                sendAck(rtpBytesToPacket(packet.getData()), c);
                 byte[] payload = rtpPacket.getPayload();
 
                 byte[] arr = new byte[4];
@@ -591,6 +593,7 @@ public class rtp {
                 for (int i = 4; i < rtpPacket.getPayloadSize(); i++) { //remainder in the payload
                     receiveRemainder.add(payload[i]);
                 }
+                
             } else {
                 System.out.println("rtp.receive: finishing message of size: " + c.remainingMessageSize);
             }
@@ -615,9 +618,11 @@ public class rtp {
             System.out.println("rtp.receive: finished remainder, need "+leastDataReq+" more bytes");
             while(leastDataReq > 0) { //pulling from receive buffer, receive remainder is now empty
                 DatagramPacket packet = c.getReceiveBuffer().take();
+                
                 sendAck(rtpBytesToPacket(packet.getData()), c);
                 Packet rtpPacket = rtpBytesToPacket(packet.getData());
                 byte[] payload = rtpPacket.getPayload();
+                System.out.println("rtp.receive: got a packet with seq# " + rtpPacket.getSequenceNumber());
 
                 for (int i = 0; i < rtpPacket.getPayloadSize() ; i++) {
                     if (leastDataReq > 0) { //still need to read more
@@ -654,6 +659,7 @@ public class rtp {
 	 */
 	private static void sendAck(Packet p, Connection c) throws IOException {
 		int newAckNum = p.getSequenceNumber() + p.getPayloadSize();
+		System.out.println("rtp.sendAck: sending ack with ack# " + newAckNum);
 		int newSeqNum = p.getAckNumber();
 		Packet ack = new Packet(false, true, false, newSeqNum, newAckNum, null);
 		ack.setRemainingBufferSize(c.getMaxLocalWindowSize() - c.getReceiveBuffer().size());
@@ -866,20 +872,23 @@ public class rtp {
                             	// make sure it's not a dup
                             	int seqNum = rtpReceivePacket.getSequenceNumber();
 
-                            	if (c.isValidOrder(rtpReceivePacket)) {
-                                    if(c.isValidDataPacket(rtpReceivePacket)) {
+                            	if (c.isValidDataPacket(rtpReceivePacket)) {
+                                    if(c.isValidOrder(rtpReceivePacket) ) {
 //                                        System.out.println("MultiplexData.run: Got a new data packet with seq# " + seqNum);
                                         c.updateOrdering(seqNum + rtpReceivePacket.getPayloadSize()); //out of order detection
                                         c.getReceiveBuffer().put(receivePacket);
                                         c.addToReceivedSeqNum(rtpReceivePacket.getSequenceNumber());
                                     } else {
-                                        sendAck(rtpReceivePacket, c);
-//                                        System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
+                                    	System.out.println("MultiplexData.run: Got a out of order " +
+                                                "data packet. Ignore seq# "+seqNum);
+                                        System.out.println("MultiplexData.run: expectedOrder = " + c.lastSeqReceived);
+            
                                     }
                             	} else {
-//                                    System.out.println("MultiplexData.run: Got a out of order " +
-//                                            "data packet. Ignore seq# "+seqNum);
+                            		sendAck(rtpReceivePacket, c);
+                                    System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
                             	}
+                            	
                             }
                         }
                     }

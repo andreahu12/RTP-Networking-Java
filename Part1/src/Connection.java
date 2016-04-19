@@ -40,7 +40,7 @@ public class Connection {
     public int remainingMessageSize; //>0 if in the middle of a message, used in receive
     public int remoteReceiveWindowRemaining; //initialized in conect
 
-    private int lastSeqReceived; //for out of order detection
+    public int lastSeqReceived; //for out of order detection
     private int lastSeqSent; //for creating seq nums
 
     //congestion control variables
@@ -276,6 +276,7 @@ public class Connection {
 	 * @param expectedAckNum
 	 */
 	public void addTimeout(Long timeout, DatagramPacket dp, int expectedAckNum) {
+		System.out.println("connection.addTimeout: added timeout with expectedAckNum = " + expectedAckNum);
 		timeoutList.add(timeout);
 		timeoutToDatagramPacket.put(timeout, dp);
 		ackNumToTimeout.put(expectedAckNum, timeout);
@@ -319,7 +320,8 @@ public class Connection {
 	 */
 	public void removeTimeout(int ackNum) {
 		Long timeout = ackNumToTimeout.get(ackNum);
-		
+		System.out.println("connection.removeTimeout: removing timeout with ackNum = " + ackNum);
+
 		// remove timeout from timeout list
 		timeoutList.remove(timeout);
 		// remove timeout-DP from timeoutToDatagramPacket
