@@ -44,12 +44,12 @@ public class TestClientRTP {
 //            System.out.println("TestClientRTP: Sending data: 1,2,3,4");
 //            rtp.send(test,c);
 //            System.out.println("TestClientRTP: Data sent");
-            System.out.println("***********************************************************");
-            System.out.println("TestClientRTP: testing receive when emptying remainder");
-            System.out.println("TestClientRTP: Sending large 10000 byte data");
+//            System.out.println("***********************************************************");
+//            System.out.println("TestClientRTP: testing receive when emptying remainder");
+//            System.out.println("TestClientRTP: Sending large 10000 byte data");
             test = createLargeMessage();
-            rtp.send(test,c);
-            System.out.println("TestClientRTP: Data sent");
+//            rtp.send(test,c);
+//            System.out.println("TestClientRTP: Data sent");
             System.out.println("***********************************************************");
             System.out.println("TestClientRTP: testing timeouts and duplicates");
             byte[] test2 = {0,1,2,3,4,5};

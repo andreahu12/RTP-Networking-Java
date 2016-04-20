@@ -350,7 +350,7 @@ public class rtp {
 			if (timedOutPacket != null) { // a packet has timed out
 				System.out.println("\n-----------------------------------------");
 				System.out.println("rtp.send: ERROR - a packet has timed out with seq# " + 
-				rtpBytesToPacket(timedOutPacket.getData()).getSequenceNumber());
+						rtpBytesToPacket(timedOutPacket.getData()).getSequenceNumber());
 				System.out.println("rtp.send: packetsToAckLeft BEFORE reset is " + packetsToAckLeft);
 				//congestion window update
                 int tempDebug = connection.congestionWindow;
@@ -363,12 +363,16 @@ public class rtp {
 
                 // go back n
 				packetsToSend = getPacketsToResend(data, timedOutPacket, connection);
+				connection.clearReceivedAckNum();
 				
 				// reset these values
 				packetsToAckLeft = packetsToSend.size();
 				packetsSentButNotAcked = 0;
 				remainingPacketsToSend = packetsToSend.size();
 				System.out.println("rtp.send: packetsToAckLeft AFTER reset is " + packetsToAckLeft);
+				
+				System.out.println("rtp.send: first packet in the new queue has seq# " + 
+						rtpBytesToPacket(packetsToSend.peek().getData()).getSequenceNumber());
 				
 				// reset the timeout trackers
 				connection.resetTimeouts();
@@ -386,6 +390,7 @@ public class rtp {
                 
                 // adds a timeout value to the connection
                 Long timeout = calculateTimeout();
+                System.out.println("rtp.send: adding timeout for seq# " + rtpBytesToPacket(toSend.getData()).getSequenceNumber());
                 int expectedAckNum = getExpectedAckNum(toSend);
                 connection.addTimeout(timeout, toSend, expectedAckNum);
                 System.out.println("rtp.send: sending a new packet, so we added a timeout " + "("+ TIMEOUT +" ms)"+ " to the connection");
@@ -477,8 +482,13 @@ public class rtp {
 		Packet firstPacket = rtpBytesToPacket(q.peek().getData());
 		Packet rtpTimedOutPacket = rtpBytesToPacket(timedOutPacket.getData());
 
-		while (firstPacket.getSequenceNumber() != rtpTimedOutPacket.getSequenceNumber()) {
+		while (firstPacket.getSequenceNumber() < rtpTimedOutPacket.getSequenceNumber()) {
+			System.out.println("rtp.getPacketsToResend: TimedOutSeqNum = " + rtpTimedOutPacket.getSequenceNumber());
+			System.out.println("rtp.getPacketsToResend: FirstPacketSeqNum = " + firstPacket.getSequenceNumber());
 			q.poll(); // remove it from the q
+			if (q.isEmpty()) {
+				break;
+			}
 			firstPacket = rtpBytesToPacket(q.peek().getData());
 		}
 		
@@ -830,11 +840,11 @@ public class rtp {
                                 int ackNum = rtpReceivePacket.getAckNumber();
 
                                 if (c.isValidAck(rtpReceivePacket)) {
-//                                	System.out.println("MultiplexData.run: Got a new ACK packet. ack# " + ackNum);
+                                	System.out.println("MultiplexData.run: Got a new ACK packet. ack# " + ackNum);
 	                                c.getAckBuffer().put(receivePacket);
 	                                c.addToReceivedAckNum(ackNum);
                                 } else {
-//                                	System.out.println("MultiplexData.run: Got a dup ACK packet. Ignore ack# " + ackNum);
+                                	System.out.println("MultiplexData.run: Got a dup ACK packet. Ignore ack# " + ackNum);
                                 }
                             }
 
@@ -885,8 +895,8 @@ public class rtp {
             
                                     }
                             	} else {
-                            		sendAck(rtpReceivePacket, c);
-                                    System.out.println("MultiplexData.run: Got a dup data packet. Ignore seq# "+seqNum);
+                                    System.out.println("MultiplexData.run: Got a dup data packet. SendingAck with ack# "+(seqNum+rtpReceivePacket.getPayloadSize()));
+                                    sendAck(rtpReceivePacket, c);
                             	}
                             	
                             }

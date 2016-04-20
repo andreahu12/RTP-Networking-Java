@@ -255,7 +255,7 @@ public class Connection {
 		int receivedChecksum = p.getChecksum();
 		boolean result =  (calculatedChecksum == receivedChecksum);
 
-		System.out.println("connection.checksum: expected: " + receivedChecksum + " | actual: "+ calculatedChecksum);
+//		System.out.println("connection.checksum: expected: " + receivedChecksum + " | actual: "+ calculatedChecksum);
 		
 		return result;
 	}
@@ -276,10 +276,18 @@ public class Connection {
 	 * @param expectedAckNum
 	 */
 	public void addTimeout(Long timeout, DatagramPacket dp, int expectedAckNum) {
-		System.out.println("connection.addTimeout: added timeout with expectedAckNum = " + expectedAckNum);
+//		System.out.println("\nconnection.addTimeout: added timeout with expectedAckNum = " + expectedAckNum);
 		timeoutList.add(timeout);
+		
+//		System.out.println("connection.addTimeout: adding timeout " + timeout + " to timeoutList");
+		
 		timeoutToDatagramPacket.put(timeout, dp);
+		
+//		System.out.println("connection.addTimeout: adding timeout " + timeout + " and dp: " + dp + " to timeoutList");
+		
 		ackNumToTimeout.put(expectedAckNum, timeout);
+		
+//		System.out.println("connection.addTimeout: adding expectedAckNum " + timeout + " and timeout: " + timeout + " to ackNumToTimeout");
 	}
 	
 	/**
@@ -319,15 +327,19 @@ public class Connection {
 	 * @return
 	 */
 	public void removeTimeout(int ackNum) {
-		Long timeout = ackNumToTimeout.get(ackNum);
-		System.out.println("connection.removeTimeout: removing timeout with ackNum = " + ackNum);
-
-		// remove timeout from timeout list
-		timeoutList.remove(timeout);
-		// remove timeout-DP from timeoutToDatagramPacket
-		timeoutToDatagramPacket.remove(timeout);
-		// remove ACK-timeout from ackNumToTimeout
-		ackNumToTimeout.remove(ackNum);
+		if (ackNumToTimeout.contains(ackNum)) {
+//			System.out.println("\nconnection.removeTimeout: ackNumToTimeout contains ack# " + ackNum + "? " + ackNumToTimeout.contains(ackNum));
+			Long timeout = ackNumToTimeout.get(ackNum);
+//			System.out.println("connection.removeTimeout: removing timeout with ackNum = " + ackNum);
+//			System.out.println("connection.removeTimeout: contains timeout? " + timeoutList.contains(timeout) + " " + timeoutToDatagramPacket.contains(timeout) + " " + ackNumToTimeout.contains(timeout));
+			
+			// remove timeout from timeout list
+			timeoutList.remove(timeout);
+			// remove timeout-DP from timeoutToDatagramPacket
+			timeoutToDatagramPacket.remove(timeout);
+			// remove ACK-timeout from ackNumToTimeout
+			ackNumToTimeout.remove(ackNum);
+		}
 	}
 	
 
