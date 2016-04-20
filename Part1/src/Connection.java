@@ -279,7 +279,7 @@ public class Connection {
 //		System.out.println("\nconnection.addTimeout: added timeout with expectedAckNum = " + expectedAckNum);
 		timeoutList.add(timeout);
 		
-		System.out.println("connection.addTimeout: adding timeout " + timeout + " to timeoutList");
+//		System.out.println("connection.addTimeout: adding timeout " + timeout + " to timeoutList");
 		
 		timeoutToDatagramPacket.put(timeout, dp);
 		
@@ -300,7 +300,8 @@ public class Connection {
 			return false;
 		} else {
 			Long quickestTimeout = timeoutList.peek();
-			Long currentTime = System.currentTimeMillis();
+//			Long currentTime = System.currentTimeMillis();
+			Long currentTime = System.nanoTime();
 			return quickestTimeout < currentTime;
 		}
 	}
@@ -315,7 +316,7 @@ public class Connection {
 		if (hasTimedOutPacket()) {
 			Long timeout = timeoutList.peek();
 			DatagramPacket dp = timeoutToDatagramPacket.get(timeout);
-            System.out.println("Connection.getTimedOutPacket timeout removing: "+timeout);
+//            System.out.println("Connection.getTimedOutPacket timeout removing: "+timeout);
 			return dp;
 		}
 		return null;
@@ -330,7 +331,7 @@ public class Connection {
 	public void removeTimeout(int ackNum) {
 
         Long timeout = ackNumToTimeout.get(ackNum);
-        System.out.println("\nconnection.removeTimeout: removing ack# " + ackNum + "with time out" + timeout);
+//        System.out.println("\nconnection.removeTimeout: removing ack# " + ackNum + "with time out" + timeout);
         if (timeout == null){
             return;
         }

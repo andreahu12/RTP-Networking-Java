@@ -72,7 +72,7 @@ public class ftaserver {
 			
 			Queue<Byte> commandList = new LinkedList<Byte>();
 			
-			System.out.println("ftaserver: totalBytesInMessage = " + totalBytesInMessage);
+//			System.out.println("ftaserver: totalBytesInMessage = " + totalBytesInMessage);
 			
 			while (bytesReceived < totalBytesInMessage) {
 				byte[] recv = rtp.receive(500, connection);
@@ -80,7 +80,7 @@ public class ftaserver {
 					commandList.add(b);
 				}
 				bytesReceived = bytesReceived + recv.length;
-				System.out.println("ftaserver: bytesReceived = " + bytesReceived);
+//				System.out.println("ftaserver: bytesReceived = " + bytesReceived);
 			}
 			
 			byte[] commandBytes = new byte[commandList.size()];
@@ -88,13 +88,13 @@ public class ftaserver {
 				commandBytes[i] = commandList.poll();
 			}
 			
-			System.out.print("ftaserver: receiving...");
-			for (byte b : commandBytes) {
-				System.out.print(b+", ");
-			}
-			System.out.println();
+//			System.out.print("ftaserver: receiving...");
+//			for (byte b : commandBytes) {
+//				System.out.print(b+", ");
+//			}
+//			System.out.println();
 			
-			System.out.println("ftaserver received: " + new String(commandBytes));
+//			System.out.println("ftaserver received: " + new String(commandBytes));
 			
 			CommandReceived command = getCommand(commandBytes);
 			
@@ -136,7 +136,7 @@ public class ftaserver {
 						gList.add(b);
 					}
 					numBytesReceived = numBytesReceived + recv.length;
-					System.out.println("ftaserver: numBytesReceived = " + numBytesReceived);
+//					System.out.println("ftaserver: numBytesReceived = " + numBytesReceived);
 				}
 				
 				// turn it into a byte array
@@ -145,14 +145,14 @@ public class ftaserver {
 					gBytes[i] = gList.poll();
 				}
 				
-				System.out.println("ftaserver: received G in bytes");
+//				System.out.println("ftaserver: received G in bytes");
 				
 				// save file G
 				String g = getG(commandBytes);
 				
 				// safe f in the local directory
 				try {
-					saveFile("output2.jpg", gBytes);
+					saveFile("post_G.jpg", gBytes);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -186,7 +186,7 @@ public class ftaserver {
 		String[] args = messageStr.split(" ");
 		
 		String command = args[0]; // "get", "get-post", or "disconnect"
-		System.out.println("ftaserver.getCommand: " + command.toLowerCase());
+//		System.out.println("ftaserver.getCommand: " + command.toLowerCase());
 		if (command.toLowerCase().equals("get")) {
 			return CommandReceived.GET;
 		} else if (command.toLowerCase().equals("get-post")) {

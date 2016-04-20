@@ -216,18 +216,18 @@ public class dbengineRTP {
 			byteBuffer = rtp.receive(500, connection);
 			bytesReceived = bytesReceived + byteBuffer.length;
 			
-			System.out.println("dbengineRTP: bytesReceived = " + bytesReceived);
+//			System.out.println("dbengineRTP: bytesReceived = " + bytesReceived);
 			
 			// "query" here
 			String[] query = separate(new String(byteBuffer));
 			String queryId = query[0];
 			String attributes = query[1];
 
-			System.out.println("\n-------READING MESSAGE AT SERVER------------");
-			System.out.println("byteBuffer: " + new String(byteBuffer));
-			System.out.println("queryId: " + queryId);
-			System.out.println("attributes: " + attributes);
-			System.out.println("-------END: READING MESSAGE AT SERVER-------\n");
+//			System.out.println("\n-------READING MESSAGE AT SERVER------------");
+//			System.out.println("byteBuffer: " + new String(byteBuffer));
+//			System.out.println("queryId: " + queryId);
+//			System.out.println("attributes: " + attributes);
+//			System.out.println("-------END: READING MESSAGE AT SERVER-------\n");
 
 			if (!db.containsKey(queryId)) {
 				System.out.println("GTID does not exist in the database");

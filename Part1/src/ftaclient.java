@@ -62,10 +62,10 @@ public class ftaclient {
 					inputBuffer.put(input.getBytes());
 					
 					// send command to download a file named "get_F" from server
-					System.out.print("ftaclient: sending...");
-					for (byte b : input.getBytes()) {
-						System.out.print(b+", ");
-					}
+//					System.out.print("ftaclient: sending...");
+//					for (byte b : input.getBytes()) {
+//						System.out.print(b+", ");
+//					}
 					System.out.println();
 					rtp.send(inputBuffer.array(), c);
 					
@@ -82,7 +82,7 @@ public class ftaclient {
 							resultList.add(b);
 						}
 						bytesReceived = bytesReceived + recv.length;
-						System.out.println("ftaclient: bytesReceived = " + bytesReceived);
+//						System.out.println("ftaclient: bytesReceived = " + bytesReceived);
 					}
 					
 					// turn it into a byte array
@@ -97,7 +97,7 @@ public class ftaclient {
 					String f = getF(input.getBytes());
 					
 					// safe f in the local directory
-					saveFile(c.getLocalPort() + "output1.jpg", fileF);
+					saveFile("get_F.jpg", fileF);
 				}
 				
 				if (command == CommandFromCL.GET_POST) {

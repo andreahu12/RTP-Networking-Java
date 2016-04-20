@@ -46,7 +46,7 @@ public class dbclientRTP {
 		
 		// Create socket that is connected to server on specified port
 		InetAddress serverIP = InetAddress.getByName(server);
-        System.out.println("parsed server ip: "+serverIP);
+//        System.out.println("parsed server ip: "+serverIP);
 		int windowSizeInBytes = 1;
 		
 		Connection c = null;
@@ -54,7 +54,8 @@ public class dbclientRTP {
 			c = rtp.connect(serverIP, servPort, windowSizeInBytes);
 			
 			if (c == null) {
-				System.out.println("dbclientRTP: connection is null");
+//				System.out.println("dbclientRTP: connection is null");
+				return;
 			} else {
 				int numBytesToSend = queryBytes.length;
 				ByteBuffer byteBuffer = ByteBuffer.allocate(4 + numBytesToSend);
@@ -63,7 +64,7 @@ public class dbclientRTP {
 				
 				rtp.send(byteBuffer.array(), c);
 				
-				System.out.println("dbclientRTP sent: " + new String(queryBytes));
+//				System.out.println("dbclientRTP sent: " + new String(queryBytes));
 				
 				Queue<Byte> resultList = new LinkedList<Byte>();
 				
@@ -76,7 +77,7 @@ public class dbclientRTP {
 						resultList.add(b);
 					}
 					bytesReceived = bytesReceived + recv.length;
-					System.out.println("dbclientRTP: bytesReceived = " + bytesReceived);
+//					System.out.println("dbclientRTP: bytesReceived = " + bytesReceived);
 				}
 				
 				byte[] result = new byte[resultList.size()];
