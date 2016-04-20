@@ -75,27 +75,28 @@ public class TestServerRTP {
 //            System.out.print("testServerRTP: expected: 4 actual: " + bytesToString(data));
 //            System.out.println();
 //            System.out.println();
-//            System.out.println("***********************************************************");
-//            System.out.println("testServerRTP: testing 10000 byte data");
-//            data = rtp.receive(100000,connection);
-//            System.out.println("testServerRTP: expected: 10000 actual: " + (data.length));
-//            System.out.println("testServerRTP: expected: 0,1,2,3,4 ....: " + bytesToString(data));
-//            System.out.println();
-//            System.out.println();
             System.out.println("***********************************************************");
-
-            System.out.println("testServerRTP: testing timeouts, dups, and checksum");
-            data = rtp.receive(50,connection);
-            try {
-                Thread.sleep(4000);
-            } catch(InterruptedException ex) {
-                Thread.currentThread().interrupt();
-            }
+            System.out.println("testServerRTP: testing 10000 byte data");
             data = rtp.receive(100000,connection);
-            System.out.println("testServerRTP: expected: 9950 actual: " + (data.length));
-            //System.out.println("testServerRTP: expected: 50,51,52,.. | actual: " + bytesToString(data));
-	        System.out.println();
-	        System.out.println();
+            System.out.println("testServerRTP: expected: 10000 actual: " + (data.length));
+//            System.out.println("testServerRTP: expected: 0,1,2,3,4 ....: " + bytesToString(data));
+            System.out.println();
+            System.out.println();
+//            System.out.println("***********************************************************");
+//
+//            System.out.println("testServerRTP: testing timeouts, dups, and checksum");
+//            data = rtp.receive(50,connection);
+//            System.out.println("testServerRTP: expected: 50 actual: " + (data.length));
+//            try {
+//                Thread.sleep(4000);
+//            } catch(InterruptedException ex) {
+//                Thread.currentThread().interrupt();
+//            }
+//            data = rtp.receive(100000,connection);
+//            System.out.println("testServerRTP: expected: 9950 actual: " + (data.length));
+//            //System.out.println("testServerRTP: expected: 50,51,52,.. | actual: " + bytesToString(data));
+//	        System.out.println();
+//	        System.out.println();
 
             
             
