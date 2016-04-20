@@ -137,7 +137,8 @@ public class rtp {
 					System.out.println("rtp.connect: 4.3  Received: " + receivePacket);
 				}
 			}
-			
+			c.resetTimeouts();
+
 			System.out.println("rtp.connect: returning " + c);
 			System.out.println("rtp.connect: ----------------- end Connect --------------------\n");
 			return c;
@@ -273,6 +274,7 @@ public class rtp {
                 System.out.println("Connection "+j+": "+i.getRemoteAddress()+":"+i.getRemotePort());
                 j++;
             }
+            c.resetTimeouts();
             return c;
         } catch (Exception e1) {
             e1.printStackTrace();
@@ -397,7 +399,7 @@ public class rtp {
 				connection.clearReceivedAckNum();
 				
 				// reset these values
-				packetsToAckLeft = packetsToSend.size()+1; //sketchest thing?
+				packetsToAckLeft = packetsToSend.size();
 				packetsSentButNotAcked = 0;
 				remainingPacketsToSend = packetsToSend.size();
 				System.out.println("rtp.send: packetsToAckLeft AFTER reset is " + packetsToAckLeft);
