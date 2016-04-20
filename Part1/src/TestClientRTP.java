@@ -44,20 +44,21 @@ public class TestClientRTP {
 //            System.out.println("TestClientRTP: Sending data: 1,2,3,4");
 //            rtp.send(test,c);
 //            System.out.println("TestClientRTP: Data sent");
-//            System.out.println("***********************************************************");
-//            System.out.println("TestClientRTP: testing receive when emptying remainder");
-//            System.out.println("TestClientRTP: Sending large 10000 byte data");
-            test = createLargeMessage();
-//            rtp.send(test,c);
-//            System.out.println("TestClientRTP: Data sent");
             System.out.println("***********************************************************");
-            System.out.println("TestClientRTP: testing timeouts and duplicates");
-            byte[] test2 = {0,1,2,3,4,5};
-            System.out.println("TestClientRTP: Sending data: 0,1,2,3,4,5");
+            System.out.println("TestClientRTP: testing receive when emptying remainder");
+            System.out.println("TestClientRTP: Sending large 10000 byte data");
+            test = createLargeMessage();
+            test = createLargerMessage();
             rtp.send(test,c);
             System.out.println("TestClientRTP: Data sent");
-            System.out.println();
-            System.out.println();
+//            System.out.println("***********************************************************");
+//            System.out.println("TestClientRTP: testing timeouts and duplicates");
+//            byte[] test2 = {0,1,2,3,4,5};
+//            System.out.println("TestClientRTP: Sending data: 0,1,2,3,4,5");
+//            rtp.send(test,c);
+//            System.out.println("TestClientRTP: Data sent");
+//            System.out.println();
+//            System.out.println();
 
             
             
@@ -83,6 +84,14 @@ public class TestClientRTP {
     private static byte[] createLargeMessage(){
         byte[] large = new byte[10000];
         for(int i = 0; i<10000; i++){
+            large[i] = (byte)(i%256);
+        }
+        return large;
+    }
+
+    private static byte[] createLargerMessage(){
+        byte[] large = new byte[100000];
+        for(int i = 0; i<100000; i++){
             large[i] = (byte)(i%256);
         }
         return large;

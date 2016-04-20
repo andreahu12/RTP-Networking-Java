@@ -327,18 +327,24 @@ public class Connection {
 	 * @return
 	 */
 	public void removeTimeout(int ackNum) {
-		if (ackNumToTimeout.contains(ackNum)) {
+
 //			System.out.println("\nconnection.removeTimeout: ackNumToTimeout contains ack# " + ackNum + "? " + ackNumToTimeout.contains(ackNum));
 			Long timeout = ackNumToTimeout.get(ackNum);
+        if (timeout == null){
+            return;
+        }
 //			System.out.println("connection.removeTimeout: removing timeout with ackNum = " + ackNum);
 //			System.out.println("connection.removeTimeout: contains timeout? " + timeoutList.contains(timeout) + " " + timeoutToDatagramPacket.contains(timeout) + " " + ackNumToTimeout.contains(timeout));
 			
 			// remove timeout from timeout list
 			timeoutList.remove(timeout);
 			// remove timeout-DP from timeoutToDatagramPacket
-			timeoutToDatagramPacket.remove(timeout);
+        if (timeoutToDatagramPacket.contains(timeout)) {
+            timeoutToDatagramPacket.remove(timeout);
+        }
 			// remove ACK-timeout from ackNumToTimeout
-			ackNumToTimeout.remove(ackNum);
+        if (ackNumToTimeout.contains(ackNum)) {
+				ackNumToTimeout.remove(ackNum);
 		}
 	}
 	
