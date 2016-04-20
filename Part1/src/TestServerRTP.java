@@ -86,6 +86,7 @@ public class TestServerRTP {
 
             System.out.println("testServerRTP: testing timeouts, dups, and checksum");
             data = rtp.receive(50,connection);
+            System.out.println("testServerRTP: expected: 50 actual: " + (data.length));
             try {
                 Thread.sleep(4000);
             } catch(InterruptedException ex) {

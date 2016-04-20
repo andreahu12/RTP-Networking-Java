@@ -85,7 +85,7 @@ public class rtp {
 			/*
 			 * HANDSHAKE 1: CLIENT --> SERVER
 			 */
-			DatagramPacket SynPacketDP = makeSynPacket(serverIP, serverPort);
+			DatagramPacket SynPacketDP = makeSynPacket(serverIP, serverPort, windowSize);
 			System.out.println("rtp.connect: 2. Made SYN packet");
 			socket.send(SynPacketDP);
 			System.out.println("rtp.connect: 3. Sent SYN packet");
@@ -108,7 +108,7 @@ public class rtp {
                     if(c.ssthresh < 2){
                         c.ssthresh = 2;
                     }
-					DatagramPacket ack = makeHandshakeAckPacket(serverIP, serverPort, windowSize);
+					DatagramPacket ack = makeHandshakeAckPacket(serverIP, serverPort);
 					System.out.println("rtp.connect: 6. Made ACK");
 					socket.send(ack);
 					System.out.println("rtp.connect: 7. Sent ACK");
@@ -144,12 +144,11 @@ public class rtp {
 	 * Creates an ACK packet for the 3rd handshake
 	 * @param serverAddress ip of server
 	 * @param serverPort listening port of server
-     * @param windowSize remaining Window Size
 	 * @return handshake ack packet
 	 */
-	private static DatagramPacket makeHandshakeAckPacket(InetAddress serverAddress, int serverPort, int windowSize) {
+	private static DatagramPacket makeHandshakeAckPacket(InetAddress serverAddress, int serverPort) {
 		Packet packet3 = new Packet(false, true, false, 1, 1, null);
-        packet3.setRemainingBufferSize(windowSize);
+//        packet3.setRemainingBufferSize(windowSize);
         // reassign checksum to account for remaining buffer size
         packet3.setChecksum(packet3.calculateChecksum());
 		byte[] packet3bytes = packet3.packetize();
@@ -179,8 +178,9 @@ public class rtp {
 	 * @param serverPort port of server
 	 * @return Datagram Packet with syn set to 1
 	 */
-	private static DatagramPacket makeSynPacket(InetAddress serverIP, int serverPort) {
+	private static DatagramPacket makeSynPacket(InetAddress serverIP, int serverPort, int windowSize) {
 		Packet SynPacket = new Packet(false, false, true, 0, 0, null);
+        SynPacket.setRemainingBufferSize(windowSize);
 		byte[] SynPacketBytes = SynPacket.packetize();
 
         return new DatagramPacket(SynPacketBytes, SynPacketBytes.length,
@@ -228,14 +228,15 @@ public class rtp {
             c.setMaxLocalWindowSize(remainingWindowSize);
 
             socket.send(synAckPacket);
-            DatagramPacket ack = c.getAckBuffer().take(); //blocks until it returns something
-            Packet rtpAck = rtpBytesToPacket(ack.getData());
+//            Packet rtpAck = rtpBytesToPacket(ack.getData());
 
-            c.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize(); //flow ctr
+            c.remoteReceiveWindowRemaining = rtpBytesToPacket(synPacket.getData()).getRemainingBufferSize(); //flow ctr
             c.ssthresh = c.remoteReceiveWindowRemaining*3/4; //congestion control
             if(c.ssthresh < 2){
                 c.ssthresh = 2;
             }
+
+            DatagramPacket ack = c.getAckBuffer().take(); //blocks until it returns something
             System.out.println("rtp.accept: received an ACK packet, printing list of connections");
             int j = 0;
             for(Connection i: connections.values()){
