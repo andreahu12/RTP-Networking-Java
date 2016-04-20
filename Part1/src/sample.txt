@@ -1,1 +1,90 @@
-Sample
+Here is some sample output.
+
+******************************************************************
+----------------------------->RDBA HERE<--------------------------
+******************************************************************
+
+==================================================================
+RDBA - 1 QUERY
+==================================================================
+-- SERVER --
+lawn-143-215-120-82:src andreahu$ java dbengineRTP 8591
+dbengineRTP: Handling client at /127.0.0.1 on Port 60930
+rtp.send: FINISHED SENDING MESSAGE
+dbengineRTP sent: gpa: 3.545455
+
+-- CLIENT --
+lawn-143-215-120-82:src andreahu$ java dbclientRTP 127.0.0.1:8591 903084336 gpa
+rtp.connect: SUCCESSFULLY CONNECTED
+rtp.send: FINISHED SENDING MESSAGE
+dbclientRTP received: gpa: 3.545455
+
+==================================================================
+RDBA - 2 QUERY
+==================================================================
+-- SERVER --
+lawn-143-215-120-82:src andreahu$ java dbengineRTP 8591
+dbengineRTP: Handling client at /127.0.0.1 on Port 63451
+rtp.send: FINISHED SENDING MESSAGE
+dbengineRTP sent: gpa: 3.545455, gpa_hours: 66
+
+-- CLIENT --
+lawn-143-215-120-82:src andreahu$ java dbclientRTP 127.0.0.1:8591 903084336 gpa gpa_hours
+rtp.connect: SUCCESSFULLY CONNECTED
+rtp.send: FINISHED SENDING MESSAGE
+dbclientRTP received: gpa: 3.545455, gpa_hours: 66
+==================================================================
+
+
+
+
+
+
+
+******************************************************************
+--------------------------->FTA HERE<-----------------------------
+******************************************************************
+
+==================================================================
+FTA - GET AND DISCONNECT
+==================================================================
+-- SERVER --
+lawn-143-215-120-82:src andreahu$ java ftaserver 8591 1
+ftaserver: Handling client at /127.0.0.1 on Port 63082
+rtp.send: FINISHED SENDING MESSAGE
+ftaserver: sent file F
+
+-- CLIENT --
+lawn-143-215-120-82:src andreahu$ java ftaclient 127.0.0.1:8591 1
+rtp.connect: SUCCESSFULLY CONNECTED
+Enter a command (get F, get-post F G, or disconnect):
+get 3251.jpg
+
+rtp.send: FINISHED SENDING MESSAGE
+ftaclient: got file F
+Enter a command (get F, get-post F G, or disconnect):
+disconnect
+
+==================================================================
+FTA - GET-POST AND DISCONNECT
+==================================================================
+-- SERVER --
+lawn-143-215-120-82:src andreahu$ java ftaserver 8591 1
+ftaserver: Handling client at /127.0.0.1 on Port 60929
+rtp.send: FINISHED SENDING MESSAGE
+ftaserver: sent file F
+ftaserver: saved file G
+
+-- CLIENT --
+lawn-143-215-120-82:src andreahu$ java ftaclient 127.0.0.1:8591 1
+rtp.connect: SUCCESSFULLY CONNECTED
+Enter a command (get F, get-post F G, or disconnect):
+get-post catburrito.jpg penguin.jpg
+
+rtp.send: FINISHED SENDING MESSAGE
+ftaclient: got file F
+rtp.send: FINISHED SENDING MESSAGE
+ftaclient: sent file G to the server
+Enter a command (get F, get-post F G, or disconnect):
+disconnect
+==================================================================
