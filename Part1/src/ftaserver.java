@@ -33,6 +33,9 @@ public class ftaserver {
          */
         while(true) {
 			Connection c = rtp.accept(maxWindowSizeInBytes);
+			if (c == null) {
+				return;
+			}
             (new ConnectionThread(c)).start();
 			// ah: can't close the client socket from the server
 	        //clntSock.close(); // Close the socket. We are done with this client!

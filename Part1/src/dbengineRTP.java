@@ -41,6 +41,9 @@ public class dbengineRTP {
         while(true) {
         	int windowSize = 1;
 			Connection c = rtp.accept(windowSize);
+			if (c == null) {
+				return;
+			}
             (new ConnectionThread(c)).start();
             
 //            Queue<byte[]> resultList = new LinkedList<byte[]>();
