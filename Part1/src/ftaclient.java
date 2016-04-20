@@ -38,6 +38,10 @@ public class ftaclient {
 		try {
 			c = rtp.connect(serverIP, serverPort, windowSizeInBytes);
 			
+			if (c == null) {
+				return;
+			}
+			
 			boolean receivedDisconnect = false;
 			
 			while (!receivedDisconnect) {

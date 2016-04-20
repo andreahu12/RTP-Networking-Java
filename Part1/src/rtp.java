@@ -85,13 +85,30 @@ public class rtp {
 			/*
 			 * HANDSHAKE 1: CLIENT --> SERVER
 			 */
+			
 			DatagramPacket SynPacketDP = makeSynPacket(serverIP, serverPort);
 			System.out.println("rtp.connect: 2. Made SYN packet");
 			socket.send(SynPacketDP);
+			// TODO: TIMEOUT THINGS
+			c.addTimeout(calculateTimeout(), SynPacketDP, getExpectedAckNum(SynPacketDP));
+			
 			System.out.println("rtp.connect: 3. Sent SYN packet");
 
             System.out.println("rtp.connect: 4. Waiting to receive SYN ACK...");
-			DatagramPacket receivePacket = c.getAckBuffer().take(); //blocks
+//			DatagramPacket receivePacket = c.getAckBuffer().take(); //blocks
+            // TODO: TIMEOUT THINGS
+            while (c.getAckBuffer().isEmpty()) {
+            	DatagramPacket timedOutPacket = c.getTimedOutPacket();
+            	if (timedOutPacket != null) {
+            		System.out.println("rtp.connect: CONNECTION FAILED! SYN ACK packet timed out");
+            		deleteConnection(c.getRemoteAddress().getHostAddress(), String.valueOf(c.getRemotePort()));
+            		Thread.currentThread().interrupt();
+            		return null;
+            	}
+            }
+            DatagramPacket receivePacket = c.getAckBuffer().take();
+			c.removeTimeout(rtpBytesToPacket(receivePacket.getData()).getAckNumber());
+			
 			System.out.println("rtp.connect: 4.1 Received a datagram packet: " + receivePacket);
 			
 			boolean validPacketReceived = false;
@@ -110,6 +127,7 @@ public class rtp {
                     }
 					DatagramPacket ack = makeHandshakeAckPacket(serverIP, serverPort, windowSize);
 					System.out.println("rtp.connect: 6. Made ACK");
+					// TODO: uncomment this!
 					socket.send(ack);
 					System.out.println("rtp.connect: 7. Sent ACK");
 					validPacketReceived = true;
@@ -228,7 +246,20 @@ public class rtp {
             c.setMaxLocalWindowSize(remainingWindowSize);
 
             socket.send(synAckPacket);
+            // TODO: TIMEOUT
+            c.addTimeout(calculateTimeout(), synAckPacket, getExpectedAckNum(synAckPacket));
+            
+            while (c.getAckBuffer().isEmpty()) {
+            	DatagramPacket timedOutPacket = c.getTimedOutPacket();
+            	if (timedOutPacket != null) {
+            		System.out.println("rtp.accept: ACK packet in 3-way handshake has timed out!");
+            		return null;
+            	}
+            }
             DatagramPacket ack = c.getAckBuffer().take(); //blocks until it returns something
+            // TODO: timeout
+            c.removeTimeout(rtpBytesToPacket(ack.getData()).getAckNumber());
+            
             Packet rtpAck = rtpBytesToPacket(ack.getData());
 
             c.remoteReceiveWindowRemaining = rtpAck.getRemainingBufferSize(); //flow ctr

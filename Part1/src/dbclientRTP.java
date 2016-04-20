@@ -52,87 +52,46 @@ public class dbclientRTP {
 		Connection c = null;
 		try {
 			c = rtp.connect(serverIP, servPort, windowSizeInBytes);
-
-			int numBytesToSend = queryBytes.length;
-			ByteBuffer byteBuffer = ByteBuffer.allocate(4 + numBytesToSend);
-			byteBuffer.putInt(numBytesToSend);
-			byteBuffer.put(queryBytes);
 			
-			rtp.send(byteBuffer.array(), c);
-			
-			System.out.println("dbclientRTP sent: " + new String(queryBytes));
-			
-			Queue<Byte> resultList = new LinkedList<Byte>();
-			
-			int totalBytes = ByteBuffer.wrap(rtp.receive(4, c)).getInt();
-			int bytesReceived = 0;
-			
-			while (bytesReceived < totalBytes) {
-				byte[] recv = rtp.receive(500, c);
-				for (byte b : recv) {
-					resultList.add(b);
+			if (c == null) {
+				System.out.println("dbclientRTP: connection is null");
+			} else {
+				int numBytesToSend = queryBytes.length;
+				ByteBuffer byteBuffer = ByteBuffer.allocate(4 + numBytesToSend);
+				byteBuffer.putInt(numBytesToSend);
+				byteBuffer.put(queryBytes);
+				
+				rtp.send(byteBuffer.array(), c);
+				
+				System.out.println("dbclientRTP sent: " + new String(queryBytes));
+				
+				Queue<Byte> resultList = new LinkedList<Byte>();
+				
+				int totalBytes = ByteBuffer.wrap(rtp.receive(4, c)).getInt();
+				int bytesReceived = 0;
+				
+				while (bytesReceived < totalBytes) {
+					byte[] recv = rtp.receive(500, c);
+					for (byte b : recv) {
+						resultList.add(b);
+					}
+					bytesReceived = bytesReceived + recv.length;
+					System.out.println("dbclientRTP: bytesReceived = " + bytesReceived);
 				}
-				bytesReceived = bytesReceived + recv.length;
-				System.out.println("dbclientRTP: bytesReceived = " + bytesReceived);
+				
+				byte[] result = new byte[resultList.size()];
+				for (int i = 0; i < result.length; i++) {
+					result[i] = resultList.poll();
+				}
+				
+				System.out.println("dbclientRTP received: " + new String(result));
+				
+				rtp.close(c);
 			}
-			
-			byte[] result = new byte[resultList.size()];
-			for (int i = 0; i < result.length; i++) {
-				result[i] = resultList.poll();
-			}
-			
-			System.out.println("dbclientRTP received: " + new String(result));
-			
-			rtp.close(c);
-
 		} catch (Exception e1) {
 			e1.printStackTrace();
 		}
 	}
-	
-	
-//  byte[] test = {1,2,3,4};
-//  System.out.println("dbClient: Sending data: 1,2,3,4");
-//  rtp.send(test,c);
-//  System.out.println("dbClient: Data sent");
-//
-//  System.out.println("dbClient: looking for 4 bytes of data");
-//  byte[] data = rtp.receive(4,c);
-//
-//  System.out.print("dbClient: read bytes: ");
-//  for (Byte b:data) {
-//      System.out.print(b.toString());
-//  }
-//  System.out.println();
-
-//	try {
-//		// TODO: send byte buffer
-//		rtp.send(byteBuffer, c);
-//
-//		// get query results
-//		boolean receivedMessage = false;
-//		int totalBytesRecvd = 0;
-//		int bytesRcvd;
-//		while (!receivedMessage) {
-//			byteBuffer = new byte[500];
-////			if ((bytesRcvd = in.read(byteBuffer, totalBytesRecvd, byteBuffer.length - totalBytesRecvd)) == -1) {
-////				throw new SocketException("Connection closed prematurely");
-////			}
-//
-//			if ((bytesRcvd = rtp.receive(byteBuffer, 500, c)) > 0) {
-//				totalBytesRecvd += bytesRcvd;
-//				receivedMessage = true;
-//			}
-//		}
-//
-//		System.out.println("From Server: " + new String(byteBuffer));
-//
-//		// TODO: close the connection
-//		rtp.close(c); // Close the socket and its streams
-//
-//	} catch (Exception e) {
-//		e.printStackTrace();
-//	}
 	
 	
 	
