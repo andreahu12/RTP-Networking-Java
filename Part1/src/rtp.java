@@ -366,7 +366,7 @@ public class rtp {
 				connection.clearReceivedAckNum();
 				
 				// reset these values
-				packetsToAckLeft = packetsToSend.size();
+				packetsToAckLeft = packetsToSend.size()+1; //sketchest thing?
 				packetsSentButNotAcked = 0;
 				remainingPacketsToSend = packetsToSend.size();
 				System.out.println("rtp.send: packetsToAckLeft AFTER reset is " + packetsToAckLeft);
@@ -829,9 +829,9 @@ public class rtp {
                         Packet rtpReceivePacket = rtpBytesToPacket(receivePacket.getData());
                         InetAddress remoteAddress = receivePacket.getAddress();
                         int remotePort = receivePacket.getPort();
+                        Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
 
                         if (rtpReceivePacket.getACK() && !rtpReceivePacket.getFIN()) { //if ack, put in corresponding ack buffer
-                            Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
                            
                             if (c != null) {
 //                                System.out.println("\nMultiplexData.run: Got an ACK packet");
@@ -853,7 +853,7 @@ public class rtp {
                             synQ.add(receivePacket);
                             
                         } else if (rtpReceivePacket.getFIN() && !rtpReceivePacket.getACK()) {
-                        	Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+
                         	if (c != null) {
 //                        		System.out.println("\nMultiplexData.run: Got a FIN packet");
                         		DatagramPacket finack = makeFinAckPacket(rtpReceivePacket);
@@ -865,7 +865,7 @@ public class rtp {
                         } else if (rtpReceivePacket.getFIN() && rtpReceivePacket.getACK()) {
                         	// received a FINACK
                         	
-                        	Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
+
                         	if (c != null) {
 //	                        	System.out.println("\nMultiplexData.run: Got a FIN ACK packet");
 	                        	deleteConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
@@ -875,8 +875,7 @@ public class rtp {
                         	}
                         } else { //data to put in corresponding recieve buffer
 //                            System.out.println("\nMultiplexData.run: Got a data packet");
-                            Connection c = getConnection(remoteAddress.getHostAddress(), String.valueOf(remotePort));
-                            
+
                             if (c != null) {
                             	
                             	// make sure it's not a dup

@@ -93,7 +93,7 @@ public class ftaclient {
 					String f = getF(input.getBytes());
 					
 					// safe f in the local directory
-					saveFile("output1.jpg", fileF);
+					saveFile(c.getLocalPort() + "output1.jpg", fileF);
 				}
 				
 				if (command == CommandFromCL.GET_POST) {
